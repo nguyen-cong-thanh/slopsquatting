@@ -50,7 +50,7 @@ Các tài liệu gốc nằm trên Google Drive (file .docx, .xlsx, Google Docs,
 
 | File | Nội dung | Ngày |
 | --- | --- | --- |
-| [thiet-ke-du-lieu.md](docs/du-lieu/thiet-ke-du-lieu.md) | Trả lời 5 câu hỏi về dữ liệu sau buổi trao đổi với thầy hướng dẫn; đính chính số liệu sau khi đọc toàn văn 8 bài | 06/11/2026 |
+| [thiet-ke-du-lieu.md](docs/du-lieu/thiet-ke-du-lieu.md) | Báo cáo gửi thầy hướng dẫn: thiết kế dữ liệu cho Giai đoạn 1, đề xuất điều chỉnh đề cương, phụ lục đính chính số liệu | 07/11/2026 |
 
 ## Đạo đức nghiên cứu
 
