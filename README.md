@@ -50,7 +50,7 @@ Các tài liệu gốc nằm trên Google Drive (file .docx, .xlsx, Google Docs,
 
 | File | Nội dung | Ngày |
 | --- | --- | --- |
-| [thiet-ke-du-lieu.md](docs/du-lieu/thiet-ke-du-lieu.md) | Báo cáo gửi thầy hướng dẫn: trả lời các câu hỏi về dữ liệu, kiểu dữ liệu và mô hình, đóng góp khoa học | 07/11/2026 |
+| [thiet-ke-du-lieu.md](docs/du-lieu/thiet-ke-du-lieu.md) | Báo cáo gửi thầy hướng dẫn: trả lời các câu hỏi về dữ liệu, bộ phát hiện hai tầng có dùng metadata, đóng góp khoa học, thay đổi so với đề cương | 07/11/2026 |
 
 ## Đạo đức nghiên cứu
 
