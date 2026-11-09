@@ -51,6 +51,7 @@ Các tài liệu gốc nằm trên Google Drive (file .docx, .xlsx, Google Docs,
 | File | Nội dung | Ngày |
 | --- | --- | --- |
 | [thiet-ke-du-lieu.md](docs/du-lieu/thiet-ke-du-lieu.md) | Báo cáo gửi thầy hướng dẫn: trả lời các câu hỏi về dữ liệu, bộ phát hiện hai tầng có dùng metadata, đóng góp khoa học, thay đổi so với đề cương | 07/11/2026 |
+| [bao-cao-thu-nghiem-pilot.md](docs/du-lieu/bao-cao-thu-nghiem-pilot.md) | **Mới nhất.** Pilot định lượng trên dữ liệu công khai + metadata PyPI: chọn mô hình, tấn công làm giả metadata, giả thuyết, cỡ mẫu và lộ trình bài báo. Mã: [`experiments/pilot/`](experiments/pilot/) | 09/11/2026 |
 
 ## Đạo đức nghiên cứu
 
