@@ -8,7 +8,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import roc_auc_score, average_precision_score
 from xgboost import XGBClassifier
 torch.manual_seed(0); np.random.seed(0); torch.set_num_threads(4)
-D = pd.read_csv(sys.argv[1]); OUT = sys.argv[2]; R = {}
+D = pd.read_csv(sys.argv[1], dtype={"models": str, "first_seen": str}); OUT = sys.argv[2]; R = {}
 has = lambda g: D.groups.str.contains(g)
 ultra = lambda n: re.sub(r"[._-]", "", n).replace("l", "1").replace("i", "1").replace("o", "0")
 META = ["age_days","days_since_last","n_releases","n_files","summary_len","desc_len","has_author","has_license","n_requires","n_classifiers","n_urls","has_repo"]
@@ -116,8 +116,8 @@ if TM:
     R["E0"]["trendmicro_halluc_names_shared_by_>=2_models"] = sum(v >= 2 for v in allc.values()); R["E0"]["trendmicro_unique_halluc"] = len(allc)
 
 # ===== E1: tier-1 name-only (hallucinated vs real) =====
-P1 = H.drop_duplicates("name"); N1 = D[has("real_ref") & ~has("halluc")]
-held1 = dict(primary=D[has("real_llm") & ~has("real_ref") & ~has("halluc")], random_pypi=D[has("random_pypi") & ~has("real_ref")])
+P1 = H.drop_duplicates("name"); N1 = D[has("real_ref") & ~has("halluc") & ~has("real_llm") & ~has("malicious")]
+held1 = dict(primary=D[has("real_llm") & ~has("halluc")], random_pypi=D[has("random_pypi") & ~has("real_ref") & ~has("real_llm")])
 models1 = {"LR_char_ngram": lambda: SkClf("lr", [], True), "RF_name_feats": lambda: SkClf("rf", NF), "XGB_name_feats": lambda: SkClf("xgb", NF), "CharCNN": lambda: TorchClf()}
 R["E1"] = {}
 for k, f in models1.items(): R["E1"][k] = cv_eval(P1, N1, held1, f)[0]; print("E1", k, R["E1"][k], flush=True)
@@ -134,8 +134,8 @@ for k, f in models1.items():
 
 # ===== E2: tier-2 registered names, name vs meta vs name+meta =====
 withm = D.age_days >= 0
-P2 = D[(has("halluc") | has("malicious")) & withm]; N2 = D[(has("real_ref") | has("random_pypi")) & withm & ~has("halluc") & ~has("malicious")]
-held2 = dict(primary=D[has("real_llm") & ~has("real_ref") & ~has("random_pypi") & withm], new_pypi=N2[N2.age_days <= 60])
+P2 = D[(has("halluc") | has("malicious")) & withm]; N2 = D[(has("real_ref") | has("random_pypi")) & withm & ~has("halluc") & ~has("malicious") & ~has("real_llm")]
+held2 = dict(primary=D[has("real_llm") & ~has("halluc") & withm], new_pypi=N2[N2.age_days <= 60])
 models2 = {"LR_char_ngram[name]": lambda: SkClf("lr", [], True), "XGB[name]": lambda: SkClf("xgb", NF), "XGB[meta]": lambda: SkClf("xgb", META),
            "XGB[name+meta]": lambda: SkClf("xgb", NF + META), "RF[name+meta]": lambda: SkClf("rf", NF + META), "CharCNN+MLP[name+meta]": lambda: TorchClf(META)}
 R["E2"] = {}; keep = {}
