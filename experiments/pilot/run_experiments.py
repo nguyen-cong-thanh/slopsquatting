@@ -129,7 +129,7 @@ rs = np.random.RandomState(0); msk = rs.rand(len(N1)) < .8
 R["E1_crossLLM"] = {}
 for k, f in models1.items():
     m = f().fit(pd.concat([P1[gpt], N1[msk]]), np.r_[np.ones(gpt.sum()), np.zeros(msk.sum())])
-    neg, pin, pout = m.score(N1[~msk]), m.score(P1[gpt].sample(frac=1, random_state=0).iloc[:0]), m.score(P1[oth])
+    neg, pout = m.score(N1[~msk]), m.score(P1[oth])
     R["E1_crossLLM"][k] = dict(n_train_pos=int(gpt.sum()), n_test_pos_other_llm=int(oth.sum()), auc_other_llm=round(auc(pout, neg), 3), tpr_at_1fpr_other_llm=round(tpr_at(pout, neg), 3), tpr_ci=boot(tpr_at, pout, neg))
 
 # ===== E2: tier-2 registered names, name vs meta vs name+meta =====
