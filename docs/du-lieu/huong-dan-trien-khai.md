@@ -38,6 +38,87 @@ Kết quả mong đợi: `prompts.txt` có 18.074 câu hỏi (18.033 câu của 
 
 ---
 
+## Hướng dẫn cho LLM thương mại
+
+### Chọn mô hình
+
+Tiêu chí, theo thứ tự ưu tiên:
+
+1. **Được lập trình viên dùng nhiều** (kết quả có ý nghĩa thực tế).
+2. **Sinh đủ tên bịa:** ≥ 500 tên bịa không trùng trên ≤ 18.074 câu hỏi.
+3. **Chi phí thấp, có Batch API** (gửi theo lô, không cần trả lời ngay, giảm giá).
+4. **Có mã phiên bản cố định** để người khác chạy lại được.
+
+| Ứng viên | Bằng chứng hiện có | Ưu điểm | Rủi ro |
+| --- | --- | --- | --- |
+| Dòng GPT "mini" của OpenAI | Churilov (2026): GPT-5.4-mini có tỷ lệ bịa cao nhất trong 5 LLM thế hệ mới (6,10%). 0pstech: gpt-4o-mini đóng góp 1.713/2.197 tên | Nhiều tên bịa nhất trên mỗi câu hỏi; dùng phổ biến | Cần tra giá hiện hành trên trang giá của OpenAI |
+| Claude Haiku 5.5 (`claude-haiku-5-5`) | Churilov (2026): Claude Haiku 4.5 có tỷ lệ bịa thấp nhất (4,62%); 0pstech: claude-haiku-4.5 chỉ 143 tên | Rẻ: 0,10 USD / 1 triệu token vào, 0,50 USD / 1 triệu token ra; Batch API giảm 50% | Có thể không đủ 500 tên riêng |
+| Gemini Flash | 0pstech: gemini-2.5-flash 339 tên | Có endpoint tương thích OpenAI | Cần tra giá hiện hành |
+
+**Đề xuất:** chạy thử 500 câu trên **hai ứng viên: GPT mini và Claude Haiku 5.5**, rồi chọn theo **số tên bịa không trùng trên 1.000 câu**. Nếu hai mô hình gần nhau, chọn mô hình rẻ hơn. Mô hình còn lại có thể dùng làm LLM thứ ba cho phép kiểm thử chéo nếu còn ngân sách.
+
+### Chạy với OpenAI hoặc Gemini (API tương thích OpenAI)
+
+Dùng `generate.py`, chỉ đổi biến môi trường:
+
+```bash
+export LLM_BASE_URL=https://api.openai.com/v1 LLM_API_KEY=<khóa> LLM_MODEL=<mã mô hình có ngày phiên bản>
+python ../experiments/collect/generate.py gen --prompts prompts.txt --index simple.json --out ext/own/pilot_gpt.jsonl --limit 500 --workers 4
+```
+
+Với Gemini, đặt `LLM_BASE_URL` là endpoint tương thích OpenAI của Google (`https://generativelanguage.googleapis.com/v1beta/openai`). Khi chạy toàn bộ, nên dùng Batch API của nhà cung cấp để giảm chi phí; `generate.py` hiện gọi từng câu.
+
+### Chạy với Claude (Message Batches API, giảm 50%)
+
+Dùng [`generate_claude_batch.py`](../../experiments/collect/generate_claude_batch.py) (SDK chính thức `anthropic`, cài bằng `pip install anthropic`, khóa trong `ANTHROPIC_API_KEY`).
+
+Gửi lô chạy thử:
+
+```bash
+python ../experiments/collect/generate_claude_batch.py submit-gen --prompts prompts.txt --limit 500 --manifest pilot_haiku.manifest.json
+```
+
+Lô thường xong trong vòng 1 giờ (tối đa 24 giờ). Thu kết quả và gắn nhãn:
+
+```bash
+python ../experiments/collect/generate_claude_batch.py collect --manifest pilot_haiku.manifest.json --index simple.json --out ext/own/pilot_haiku.jsonl
+```
+
+Lệnh `collect` in ra số token thực tế đã dùng, dùng để ngoại suy chi phí chạy toàn bộ. Hỏi lại để thu biến thể (bước 2.2):
+
+```bash
+python ../experiments/collect/generate_claude_batch.py submit-requery --src ext/own/full_haiku.jsonl --n 10 --max-names 500 --manifest var_haiku.manifest.json
+```
+
+### Thiết lập cần cố định và ghi vào bài báo
+
+| Thiết lập | Giá trị |
+| --- | --- |
+| Mã mô hình | Đúng chuỗi đã gọi, kèm ngày chạy |
+| System prompt | `You are a helpful Python programming assistant. Answer with complete, runnable Python code.` (giống nhau cho mọi LLM) |
+| Độ dài tối đa | 1.500 token (OpenAI-compatible); 8.000 token với Claude vì token suy luận cũng được tính vào giới hạn |
+| Nhiệt độ | 0,7 với API tương thích OpenAI. Claude API hiện không nhận tham số `temperature`; dùng cách lấy mẫu mặc định và ghi rõ trong bài |
+| Mức suy luận (Claude) | Mặc định của mô hình; chỉ đặt `--effort low` nếu cần giảm chi phí, và ghi rõ |
+
+### Ước tính chi phí
+
+Chi phí ≈ số lượt × (token vào × giá vào + token ra × giá ra) × (0,5 nếu dùng Batch).
+
+Ví dụ Claude Haiku 5.5, khoảng 23.000 lượt (18.074 câu + 5.000 lượt hỏi lại), giả định trung bình 100 token vào và 1.000 token ra mỗi lượt (kể cả token suy luận):
+
+- Token vào: 2,3 triệu × 0,10 USD ≈ 0,23 USD.
+- Token ra: 23 triệu × 0,50 USD ≈ 11,5 USD.
+- Qua Batch API (giảm 50%): **khoảng 6 USD**.
+
+Đây là ước tính; dùng số token do lệnh `collect` báo sau lần chạy thử 500 câu để tính lại. Với OpenAI và Gemini, áp cùng công thức với giá trên trang giá của nhà cung cấp.
+
+### Lưu ý
+
+- Không gửi dữ liệu cá nhân. Bộ câu hỏi chỉ gồm câu hỏi lập trình công khai.
+- Không đăng ký tên gói nào. Danh sách tên bịa chỉ lưu cục bộ cho tới khi báo cho PyPI Security.
+
+---
+
 ## Mục tiêu 1: Dữ liệu, đo đạc, chọn mô hình, báo cáo định lượng
 
 ### Bước 1.1 — Chạy thử nhỏ để chốt LLM và quy mô (2–3 ngày)
@@ -55,7 +136,7 @@ export LLM_BASE_URL=http://localhost:8000/v1 LLM_MODEL=Qwen/Qwen2.5-Coder-7B-Ins
 python ../experiments/collect/generate.py gen --prompts prompts.txt --index simple.json --out ext/own/pilot_qwen.jsonl --limit 2000
 ```
 
-Lặp lại với LLM thương mại (đổi `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`) với `--limit 500` để ước chi phí.
+Lặp lại với LLM thương mại, `--limit 500`, theo [Hướng dẫn cho LLM thương mại](#hướng-dẫn-cho-llm-thương-mại).
 
 **Đo ngay trên file đầu ra:**
 
@@ -228,6 +309,6 @@ So sánh ba cách trên cùng RER và FPR:
 | Hạng mục | Ước tính |
 | --- | --- |
 | GPU thuê cho LLM cục bộ (khoảng 23.000 lượt × tối đa 1.500 token ≈ 35 triệu token; vLLM chạy theo lô trên một GPU 24 GB đạt cỡ 1.000–2.000 token/giây → khoảng 5–10 giờ GPU) | Khoảng 5–20 USD |
-| LLM thương mại (khoảng 23.000 lượt gọi, mỗi lượt khoảng 1.500 token ra) | Phụ thuộc giá mô hình: nhân số lượt với giá token ra; chạy bước 1.1 để có số thực |
+| LLM thương mại (khoảng 23.000 lượt) | Khoảng 6 USD với Claude Haiku 5.5 qua Batch API; mô hình khác tính theo công thức ở [Hướng dẫn cho LLM thương mại](#ước-tính-chi-phí) |
 | BigQuery | Miễn phí nếu lọc theo ngày (≤ 1 TB quét/tháng) |
 | GitHub API | Miễn phí với token cá nhân |
