@@ -44,7 +44,7 @@ def collect(client, a):
             if r.result.type == "succeeded":
                 msg = r.result.message
                 texts[r.custom_id] = "".join(b.text for b in msg.content if b.type == "text")
-                usage["input"] += msg.usage.input_tokens; usage["output"] += msg.usage.output_tokens
+                usage["input"] += msg.usage.input_tokens; usage["output"] += msg.usage.output_tokens; usage[f"stop_{msg.stop_reason}"] += 1
             else: failed.append((r.custom_id, r.result.type))
     with open(a.out, "w") as f:
         if man["mode"] == "submit-gen":
@@ -63,15 +63,15 @@ def collect(client, a):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("mode", choices=["submit-gen", "submit-requery", "collect"])
-    ap.add_argument("--model", default="claude-haiku-5-5"); ap.add_argument("--effort", choices=["low", "medium", "high"], default=None)
-    ap.add_argument("--max-tokens", type=int, default=8000); ap.add_argument("--manifest", required=True)
+    ap.add_argument("--model", default="claude-haiku-5-5"); ap.add_argument("--effort", choices=["low", "medium", "high"], default="low")
+    ap.add_argument("--max-tokens", type=int, default=3000); ap.add_argument("--manifest", required=True)
     ap.add_argument("--prompts"); ap.add_argument("--src"); ap.add_argument("--index"); ap.add_argument("--out")
-    ap.add_argument("--limit", type=int, default=0); ap.add_argument("--n", type=int, default=10); ap.add_argument("--max-names", type=int, default=500)
+    ap.add_argument("--limit", type=int, default=0); ap.add_argument("--start", type=int, default=0); ap.add_argument("--n", type=int, default=10); ap.add_argument("--max-names", type=int, default=500)
     a = ap.parse_args(); client = anthropic.Anthropic()
     if a.mode == "collect": collect(client, a)
     elif a.mode == "submit-gen":
-        P = [l.strip() for l in open(a.prompts) if l.strip()]; random.seed(0)
-        idx = random.sample(range(len(P)), min(a.limit, len(P))) if a.limit else range(len(P))
+        P = [l.strip() for l in open(a.prompts) if l.strip()]; order = list(range(len(P))); random.Random(0).shuffle(order)
+        idx = order[a.start:a.limit or len(P)]      # cùng thứ tự xáo với generate.py
         submit(client, a, [(f"q{i}", P[i], dict(q=i, question=P[i])) for i in idx])
     else:
         rows = [json.loads(l) for l in open(a.src)]; tgt = [(r, b) for r in rows for b in r["modulenotfound"]]

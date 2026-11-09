@@ -78,7 +78,7 @@ Chi tiết và hạn chế ở [bao-cao-thu-nghiem-pilot.md](bao-cao-thu-nghiem-
 | # | Điểm cần chốt | Đề xuất | Phương án thay thế |
 | --- | --- | --- | --- |
 | 1 | Hệ sinh thái | Chỉ PyPI | PyPI + npm (tăng gấp đôi khối lượng) |
-| 2 | LLM | 1 chạy cục bộ (Qwen2.5-Coder-7B) + 1 thương mại, chọn giữa GPT mini và Claude Haiku 5.5 sau khi chạy thử 500 câu, theo số tên bịa không trùng trên 1.000 câu | Thêm LLM thứ ba nếu còn ngân sách |
+| 2 | LLM | Qwen2.5-Coder-7B chạy cục bộ (nguồn dữ liệu chính) + Claude Haiku 5.5 qua Batch API; chỉ chuyển sang GPT mini nếu Haiku ngoại suy được < 500 tên bịa không trùng | Thêm LLM thứ ba nếu còn ngân sách |
 | 3 | Đơn vị đếm | Tên không trùng (chuẩn hóa PEP 503) | Đếm theo lượt gợi ý (như Spracklen) — báo cả hai |
 | 4 | Chỉ số chính | TPR@1%FPR (bộ phát hiện) và RER theo ngân sách (tấn công) | Precision/Recall/F1 chỉ báo phụ |
 | 5 | Tập giữ riêng để đặt ngưỡng | ≥ 1.521 tên thật do LLM gợi ý | — |
@@ -86,12 +86,12 @@ Chi tiết và hạn chế ở [bao-cao-thu-nghiem-pilot.md](bao-cao-thu-nghiem-
 | 7 | Tấn công chính | Chọn biến thể LLM sinh + làm giả metadata (chỉ mô phỏng) | Faster-GCG giữ vai trò mốc so sánh |
 | 8 | Điểm quyết định hướng bài | Nếu trung bình < 2 biến thể đăng ký được mỗi câu hỏi, trọng tâm chuyển sang "tấn công thực tế khó hơn giả định" | — |
 | 9 | Nơi gửi bài | ACM AISec hoặc ACSAC; dự phòng tạp chí *Computers & Security* | — |
-| 10 | Ngân sách | GPU thuê khoảng 5–20 USD; LLM thương mại khoảng 6 USD (Claude Haiku 5.5 qua Batch API) hoặc theo giá mô hình được chọn | — |
+| 10 | Ngân sách | GPU thuê khoảng 5–20 USD; LLM thương mại khoảng 2,4 USD (Claude Haiku 5.5 qua Batch API, chỉ in code, dừng sớm) hoặc theo giá mô hình dự phòng | — |
 
 ## 5. Việc tuần này
 
 | Ngày | Việc | Sản phẩm |
 | --- | --- | --- |
 | Thứ 2–3 | Gửi tài liệu này, nhận ý kiến về mục 4 | Danh sách điểm đã chốt |
-| Thứ 3–5 | Chạy thử 2.000 câu trên LLM cục bộ, 500 câu trên mỗi LLM thương mại ứng viên | Tỷ lệ tên bịa, số tên không trùng, chi phí thực tế |
+| Thứ 3–5 | Chạy thử 2.000 câu trên Qwen, 500 câu trên Claude Haiku 5.5 (GPT mini chỉ khi Haiku không đạt) | Tỷ lệ tên bịa, số tên không trùng, chi phí thực tế |
 | Thứ 6 | Chốt LLM thương mại và quy mô; cập nhật kế hoạch | Bảng so sánh ứng viên, quyết định |

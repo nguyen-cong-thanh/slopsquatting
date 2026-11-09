@@ -13,13 +13,13 @@ Không đăng ký bất kỳ gói nào.
 import argparse, json, os, re, sys, time, random, urllib.request, collections
 from concurrent.futures import ThreadPoolExecutor
 norm = lambda n: re.sub(r"[-_.]+", "-", n.strip()).lower()
-SYS = "You are a helpful Python programming assistant. Answer with complete, runnable Python code."
+SYS = "You are a helpful Python programming assistant. Answer with complete, runnable Python code only, without explanation."  # chỉ code: giảm token ra
 PIP = re.compile(r"pip3?\s+install\s+([^\n`;&|#]+)")
 IMP = re.compile(r"^\s*(?:from\s+([A-Za-z_][\w]*)[\w.]*\s+import|import\s+([A-Za-z_][\w]*))", re.M)
 STD = set(sys.stdlib_module_names)
 
-def chat(prompt, temperature=0.7):
-    body = json.dumps({"model": os.environ["LLM_MODEL"], "temperature": temperature, "max_tokens": 1500,
+def chat(prompt, temperature=0.7, max_tokens=1024):
+    body = json.dumps({"model": os.environ["LLM_MODEL"], "temperature": temperature, "max_tokens": max_tokens,
                        "messages": [{"role": "system", "content": SYS}, {"role": "user", "content": prompt}]}).encode()
     req = urllib.request.Request(os.environ["LLM_BASE_URL"].rstrip("/") + "/chat/completions", body,
                                  {"Content-Type": "application/json", "Authorization": "Bearer " + os.environ.get("LLM_API_KEY", "x")})
@@ -49,9 +49,10 @@ def label(text, index):
 
 def gen(a):
     index = load_index(a.index); P = [l.strip() for l in open(a.prompts) if l.strip()]
-    random.seed(0); idx = random.sample(range(len(P)), min(a.limit, len(P))) if a.limit else range(len(P))
+    order = list(range(len(P))); random.Random(0).shuffle(order)
+    idx = order[a.start:a.limit or len(P)]          # thứ tự xáo cố định: chạy từng đợt không trùng, dừng sớm khi đủ tên
     def job(i):
-        t = chat(P[i]); return dict(model=os.environ["LLM_MODEL"], question_index=i, question=P[i], response=t, **label(t, index))
+        t = chat(P[i], max_tokens=a.max_tokens); return dict(model=os.environ["LLM_MODEL"], question_index=i, question=P[i], response=t, **label(t, index))
     with open(a.out, "a") as f, ThreadPoolExecutor(a.workers) as ex:
         for r in ex.map(job, idx): f.write(json.dumps(r, ensure_ascii=False) + "\n"); f.flush()
 
@@ -61,7 +62,7 @@ def requery(a):
     def job(rb):
         r, b = rb; cnt = collections.Counter(); bad = collections.Counter()
         for _ in range(a.n):
-            L = label(chat(r["question"]), index); cnt.update(L["modules"]); bad.update(L["modulenotfound"])
+            L = label(chat(r["question"], max_tokens=a.max_tokens), index); cnt.update(L["modules"]); bad.update(L["modulenotfound"])
         return dict(model=os.environ["LLM_MODEL"], question_index=r["question_index"], seed_name=b, n=a.n,
                     seed_repeat=cnt[b], variants=dict(cnt), halluc_variants=dict(bad))
     with open(a.out, "a") as f, ThreadPoolExecutor(a.workers) as ex:
@@ -70,6 +71,7 @@ def requery(a):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("mode", choices=["gen", "requery"])
     ap.add_argument("--prompts"); ap.add_argument("--src"); ap.add_argument("--index", required=True); ap.add_argument("--out", required=True)
-    ap.add_argument("--limit", type=int, default=0); ap.add_argument("--n", type=int, default=10); ap.add_argument("--max-names", type=int, default=500)
+    ap.add_argument("--limit", type=int, default=0, help="vị trí kết thúc trong thứ tự xáo"); ap.add_argument("--start", type=int, default=0)
+    ap.add_argument("--max-tokens", type=int, default=1024); ap.add_argument("--n", type=int, default=10); ap.add_argument("--max-names", type=int, default=500)
     ap.add_argument("--workers", type=int, default=8); a = ap.parse_args()
     gen(a) if a.mode == "gen" else requery(a)

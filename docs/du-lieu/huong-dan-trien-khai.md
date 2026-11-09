@@ -55,7 +55,7 @@ Tiêu chí, theo thứ tự ưu tiên:
 | Claude Haiku 5.5 (`claude-haiku-5-5`) | Churilov (2026): Claude Haiku 4.5 có tỷ lệ bịa thấp nhất (4,62%); 0pstech: claude-haiku-4.5 chỉ 143 tên | Rẻ: 0,10 USD / 1 triệu token vào, 0,50 USD / 1 triệu token ra; Batch API giảm 50% | Có thể không đủ 500 tên riêng |
 | Gemini Flash | 0pstech: gemini-2.5-flash 339 tên | Có endpoint tương thích OpenAI | Cần tra giá hiện hành |
 
-**Đề xuất:** chạy thử 500 câu trên **hai ứng viên: GPT mini và Claude Haiku 5.5**, rồi chọn theo **số tên bịa không trùng trên 1.000 câu**. Nếu hai mô hình gần nhau, chọn mô hình rẻ hơn. Mô hình còn lại có thể dùng làm LLM thứ ba cho phép kiểm thử chéo nếu còn ngân sách.
+**Đề xuất (tối ưu token, chốt ở mục [Phương án chốt](#phương-án-chốt-tối-ưu-token)):** thử **Claude Haiku 5.5 trước** vì rẻ nhất. Chỉ thử GPT mini nếu Haiku không đạt ngưỡng 500 tên bịa không trùng. Như vậy không tốn token cho ứng viên thứ hai khi không cần.
 
 ### Chạy với OpenAI hoặc Gemini (API tương thích OpenAI)
 
@@ -95,20 +95,50 @@ python ../experiments/collect/generate_claude_batch.py submit-requery --src ext/
 | Thiết lập | Giá trị |
 | --- | --- |
 | Mã mô hình | Đúng chuỗi đã gọi, kèm ngày chạy |
-| System prompt | `You are a helpful Python programming assistant. Answer with complete, runnable Python code.` (giống nhau cho mọi LLM) |
-| Độ dài tối đa | 1.500 token (OpenAI-compatible); 8.000 token với Claude vì token suy luận cũng được tính vào giới hạn |
+| System prompt | `You are a helpful Python programming assistant. Answer with complete, runnable Python code only, without explanation.` (giống nhau cho mọi LLM; "chỉ code" để giảm token ra) |
+| Độ dài tối đa | 1.024 token (API tương thích OpenAI); 3.000 token với Claude vì token suy luận cũng được tính vào giới hạn. Tên gói nằm ở đầu mã (`pip install`, `import`) nên cắt phần cuối không làm mất tên; lệnh `collect` đếm số câu bị cắt (`stop_max_tokens`) để kiểm tra |
 | Nhiệt độ | 0,7 với API tương thích OpenAI. Claude API hiện không nhận tham số `temperature`; dùng cách lấy mẫu mặc định và ghi rõ trong bài |
-| Mức suy luận (Claude) | Mặc định của mô hình; chỉ đặt `--effort low` nếu cần giảm chi phí, và ghi rõ |
+| Mức suy luận (Claude) | `low` (mặc định của script) để giảm token suy luận; ghi rõ trong bài |
+
+### Phương án chốt (tối ưu token)
+
+| Vai trò | Mô hình | Lý do |
+| --- | --- | --- |
+| LLM chạy cục bộ (nguồn dữ liệu chính) | **Qwen2.5-Coder-7B-Instruct** trên vLLM | Không tốn token trả phí; LLM mã nguồn mở bịa nhiều hơn (21,7% theo Spracklen và cộng sự) nên dễ đạt quy mô. Chạy toàn bộ 18.074 câu và toàn bộ phần hỏi lại ở đây |
+| LLM thương mại | **Claude Haiku 5.5** qua Batch API; dự phòng GPT mini | Rẻ nhất trong các mô hình có giá đã kiểm tra được (0,10 / 0,50 USD mỗi 1 triệu token, Batch giảm 50%) |
+
+Sáu cách giảm token, theo thứ tự tác động:
+
+1. **Dồn khối lượng sang LLM cục bộ.** Mọi thử nghiệm lặp lại, sửa lỗi bộ tách tên và hỏi lại số lượng lớn đều chạy trên Qwen trước.
+2. **Thử ứng viên theo thứ tự, không song song.** Haiku 500 câu trước; chỉ thử GPT mini khi Haiku ngoại suy được < 500 tên bịa không trùng.
+3. **Chỉ in code** (system prompt ở trên) và **giới hạn token ra**; đặt `--effort low` với Claude.
+4. **Batch API** cho mọi lượt gọi thương mại (giảm 50%).
+5. **Chạy từng đợt 2.000 câu và dừng sớm.** Hai script dùng cùng một thứ tự xáo cố định, nên các đợt `--start`/`--limit` không trùng nhau. Sau mỗi đợt chạy `count_unique.py`; dừng khi đạt ≥ 500 tên bịa không trùng, hoặc khi một đợt mới thêm < 5% tên mới.
+6. **Hỏi lại trên LLM thương mại với quy mô nhỏ hơn:** 250 tên × 10 lần thay vì 500 tên; phần đầy đủ 500 tên chạy trên Qwen.
+
+Lệnh theo đợt với Claude (đợt 2 bắt đầu ở câu 2.000):
+
+```bash
+python ../experiments/collect/generate_claude_batch.py submit-gen --prompts prompts.txt --start 2000 --limit 4000 --manifest haiku_b2.manifest.json
+```
+
+```bash
+python ../experiments/collect/generate_claude_batch.py collect --manifest haiku_b2.manifest.json --index simple.json --out ext/own/full_haiku_b2.jsonl
+```
+
+```bash
+python ../experiments/collect/count_unique.py ext/own/full_haiku_*.jsonl
+```
 
 ### Ước tính chi phí
 
 Chi phí ≈ số lượt × (token vào × giá vào + token ra × giá ra) × (0,5 nếu dùng Batch).
 
-Ví dụ Claude Haiku 5.5, khoảng 23.000 lượt (18.074 câu + 5.000 lượt hỏi lại), giả định trung bình 100 token vào và 1.000 token ra mỗi lượt (kể cả token suy luận):
+Ví dụ Claude Haiku 5.5 với các thiết lập trên, khoảng 23.000 lượt (18.074 câu + 5.000 lượt hỏi lại), giả định trung bình 100 token vào và 400 token ra mỗi lượt:
 
 - Token vào: 2,3 triệu × 0,10 USD ≈ 0,23 USD.
-- Token ra: 23 triệu × 0,50 USD ≈ 11,5 USD.
-- Qua Batch API (giảm 50%): **khoảng 6 USD**.
+- Token ra: 9,2 triệu × 0,50 USD ≈ 4,6 USD.
+- Qua Batch API (giảm 50%): **khoảng 2,4 USD**; ít hơn nữa nếu dừng sớm.
 
 Đây là ước tính; dùng số token do lệnh `collect` báo sau lần chạy thử 500 câu để tính lại. Với OpenAI và Gemini, áp cùng công thức với giá trên trang giá của nhà cung cấp.
 
@@ -309,6 +339,6 @@ So sánh ba cách trên cùng RER và FPR:
 | Hạng mục | Ước tính |
 | --- | --- |
 | GPU thuê cho LLM cục bộ (khoảng 23.000 lượt × tối đa 1.500 token ≈ 35 triệu token; vLLM chạy theo lô trên một GPU 24 GB đạt cỡ 1.000–2.000 token/giây → khoảng 5–10 giờ GPU) | Khoảng 5–20 USD |
-| LLM thương mại (khoảng 23.000 lượt) | Khoảng 6 USD với Claude Haiku 5.5 qua Batch API; mô hình khác tính theo công thức ở [Hướng dẫn cho LLM thương mại](#ước-tính-chi-phí) |
+| LLM thương mại (khoảng 23.000 lượt) | Khoảng 2,4 USD với Claude Haiku 5.5 qua Batch API, chỉ code, `effort` thấp (ít hơn nếu dừng sớm); mô hình khác tính theo công thức ở [Hướng dẫn cho LLM thương mại](#ước-tính-chi-phí) |
 | BigQuery | Miễn phí nếu lọc theo ngày (≤ 1 TB quét/tháng) |
 | GitHub API | Miễn phí với token cá nhân |
