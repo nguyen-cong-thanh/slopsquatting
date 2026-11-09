@@ -1,0 +1,233 @@
+# Hướng dẫn triển khai theo hai mục tiêu
+
+**Ngày:** 09/11/2026 · **Dựa trên:** [thiet-ke-du-lieu.md](thiet-ke-du-lieu.md), [bao-cao-thu-nghiem-pilot.md](bao-cao-thu-nghiem-pilot.md)
+
+Tài liệu này là danh sách việc cần làm, theo thứ tự. Mỗi bước có lệnh chạy, sản phẩm đầu ra và **điều kiện đạt** để chuyển sang bước sau.
+
+| Mục tiêu | Trạng thái sau pilot |
+| --- | --- |
+| **1.** Có dữ liệu đầu vào, đo đạc, chọn mô hình, báo cáo định lượng | Đã có quy trình chạy được và số liệu sơ bộ. Còn thiếu dữ liệu tự sinh bằng LLM và 3 đặc trưng metadata |
+| **2.** Chốt kế hoạch thành bài báo có tính mới | Đã có giả thuyết H1–H4, cách định vị tính mới, lộ trình. Còn thiếu bộ biến thể và thí nghiệm phòng thủ |
+
+## Chuẩn bị chung (làm một lần)
+
+**Phần cứng:** một máy GPU ≥ 24 GB (ví dụ RTX 4090 hoặc A10/L4 thuê theo giờ) để chạy LLM cục bộ. Máy không GPU vẫn chạy được mọi bước còn lại.
+
+**Môi trường:**
+
+```bash
+pip install scikit-learn pandas xgboost torch rapidfuzz vllm
+```
+
+**Dữ liệu ngoài** (đặt trong `work/`, không commit):
+
+```bash
+mkdir -p work/ext/own && cd work/ext
+for r in 0pstech/slopsquatting-dataset trendmicro/slopsquatting cuttalo/depscope-hallucinations-dataset Spracks/PackageHallucination; do git clone --depth 1 https://github.com/$r; done
+git clone --depth 1 --filter=blob:none --no-checkout https://github.com/ossf/malicious-packages ossf
+cd ..
+```
+
+```bash
+(cd ext/ossf && git ls-tree -d --name-only HEAD osv/malicious/pypi/ | sed 's#.*/##') > ossf_pypi.txt
+curl -s -H 'Accept: application/vnd.pypi.simple.v1+json' https://pypi.org/simple/ -o simple.json
+python ../experiments/collect/prepare_prompts.py ext/PackageHallucination/Data/Python prompts.txt
+```
+
+Kết quả mong đợi: `prompts.txt` có 18.074 câu hỏi (18.033 câu của Spracklen sau khi tách 8 dòng chứa nhiều câu đánh số).
+
+---
+
+## Mục tiêu 1: Dữ liệu, đo đạc, chọn mô hình, báo cáo định lượng
+
+### Bước 1.1 — Chạy thử nhỏ để chốt LLM và quy mô (2–3 ngày)
+
+Khởi động LLM cục bộ:
+
+```bash
+vllm serve Qwen/Qwen2.5-Coder-7B-Instruct --port 8000
+```
+
+Gửi 2.000 câu hỏi cho LLM cục bộ:
+
+```bash
+export LLM_BASE_URL=http://localhost:8000/v1 LLM_MODEL=Qwen/Qwen2.5-Coder-7B-Instruct
+python ../experiments/collect/generate.py gen --prompts prompts.txt --index simple.json --out ext/own/pilot_qwen.jsonl --limit 2000
+```
+
+Lặp lại với LLM thương mại (đổi `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`) với `--limit 500` để ước chi phí.
+
+**Đo ngay trên file đầu ra:**
+
+| Đại lượng | Cách tính | Dùng để |
+| --- | --- | --- |
+| Tỷ lệ tên bịa theo lượt gợi ý | Σ `modulenotfound_count` / Σ `module_count` | So với Spracklen (5,2% thương mại; 21,7% mã nguồn mở) |
+| Số tên bịa không trùng / 1.000 câu hỏi | Đếm tên khác nhau trong `modulenotfound` | Ngoại suy quy mô cần chạy để đạt 500 tên mỗi LLM |
+| Tỷ lệ báo nhầm của bộ tách tên | Kiểm tra tay 100 tên bịa ngẫu nhiên | Phải ≤ 10%; lớn hơn thì sửa quy tắc tách trong `generate.py` |
+
+**Điều kiện đạt:** mỗi LLM ngoại suy được ≥ 500 tên bịa không trùng trong phạm vi 18.074 câu. Nếu LLM thương mại không đạt, chọn LLM thương mại khác hoặc thêm bộ câu hỏi mới (bước 1.2), không hạ mục tiêu.
+
+**Lưu ý:** `generate.py` chỉ coi tên trong câu `import` là bịa khi câu trả lời không có lệnh `pip install` nào, để tránh nhầm `import cv2` (gói thật là `opencv-python`). Bước kiểm tra tay ở trên là bắt buộc.
+
+### Bước 1.2 — Sinh dữ liệu đầy đủ (1–2 tuần)
+
+```bash
+python ../experiments/collect/generate.py gen --prompts prompts.txt --index simple.json --out ext/own/full_<llm>.jsonl
+```
+
+Chạy cho cả hai LLM. Lý do cần tên thật và tên bịa **trong cùng câu trả lời**: pilot cho thấy khi hai lớp lấy từ hai nguồn khác nhau, TPR bị thổi phồng (0,548 theo kiểm định chéo so với 0,367 trên tập giữ riêng).
+
+**Điều kiện đạt:**
+
+- ≥ 4.000 tên bịa không trùng; ≥ 500 tên riêng mỗi LLM.
+- ≥ 1.521 tên thật do LLM gợi ý dùng làm tập giữ riêng (đủ để đặt ngưỡng FPR = 1% với sai số ±0,5%).
+
+### Bước 1.3 — Bổ sung metadata còn thiếu (2–3 ngày)
+
+| Đặc trưng | Nguồn | Cách lấy |
+| --- | --- | --- |
+| Lượt tải 90 ngày, số ngày có tải | BigQuery `bigquery-public-data.pypi.file_downloads` | [`experiments/collect/downloads.sql`](../../experiments/collect/downloads.sql); cần tài khoản GCP (bậc miễn phí 1 TB quét/tháng là đủ nếu lọc ngày) |
+| Số sao, ngày tạo repo, số người đóng góp | GitHub REST API | Cần token (5.000 lượt/giờ); chỉ với gói có link repo |
+| Link mã nguồn được PyPI xác minh / Trusted Publishing | Trang dự án PyPI hoặc API Integrity (PEP 740) | Đặc trưng **khó làm giả** quan trọng nhất cho phần phòng thủ |
+
+**Điều kiện đạt:** ≥ 95% gói có trên PyPI có đủ metadata.
+
+### Bước 1.4 — Dựng bộ dữ liệu và chạy đo (1 ngày)
+
+```bash
+python ../experiments/pilot/build_dataset.py ext .
+python ../experiments/pilot/run_experiments.py dataset.csv . ext/slopsquatting/slopsquatting.jsonl
+```
+
+`build_dataset.py` tự đọc mọi file trong `ext/own/*.jsonl`. Trước khi chạy cần sửa hai chỗ trong `run_experiments.py`:
+
+1. Thay nhóm `real_ref` bằng tên thật từ dữ liệu tự sinh làm lớp âm huấn luyện; tách 1.521 tên thật làm tập giữ riêng chính.
+2. Phép kiểm thử chéo: huấn luyện trên tên của LLM A, kiểm thử trên LLM B và ngược lại (thay cho chia GPT / Gemini+Claude của pilot).
+
+### Bước 1.5 — Chọn mô hình theo quy tắc định trước
+
+Ghi rõ quy tắc **trước khi** xem kết quả để tránh chọn theo kết quả:
+
+1. Chỉ số chính: TPR@1%FPR trên tập giữ riêng chính.
+2. Hai mô hình chênh nhau không có ý nghĩa thống kê (khoảng tin cậy bootstrap 95% chồng lấn) → chọn mô hình có TPR kiểm thử chéo LLM cao hơn.
+3. Vẫn hòa → chọn mô hình có FPR trên gói mới (≤ 60 ngày) thấp hơn, rồi đến mô hình nhanh hơn.
+4. Bắt buộc giữ ít nhất một mạng nơ-ron (CharCNN) cho mốc tấn công dùng gradient.
+
+Ứng viên từ pilot: tầng 1 là LR char n-gram và CharCNN; tầng 2 là Random Forest (chính) và XGBoost (đối chứng). Thêm fastText và CodeBERT ở bước này.
+
+### Bước 1.6 — Báo cáo định lượng
+
+Mỗi bảng kết quả phải có:
+
+| Thành phần | Quy định |
+| --- | --- |
+| Cỡ mẫu | Ghi *n* dương, *n* âm của từng tập |
+| Chỉ số | AUC-ROC, PR-AUC, TPR@1%FPR, FPR trên tập phụ (PyPI ngẫu nhiên, gói mới) |
+| Khoảng tin cậy | Bootstrap 95% (≥ 1.000 lần ở bản cuối; pilot dùng 500) |
+| So sánh hai mô hình | Bootstrap theo cặp cho hiệu TPR; McNemar cho quyết định tại cùng ngưỡng |
+| Độ lặp lại | 5 seed ngẫu nhiên; báo trung bình ± độ lệch chuẩn |
+| Ablation | Chỉ tên / chỉ metadata / cả hai |
+
+Mẫu trình bày: dùng các bảng ở mục 4 của [bao-cao-thu-nghiem-pilot.md](bao-cao-thu-nghiem-pilot.md).
+
+**Hoàn thành mục tiêu 1 khi:** có bảng chọn mô hình cuối trên dữ liệu tự sinh, đủ cỡ mẫu ở bước 1.2, có khoảng tin cậy và kiểm định.
+
+---
+
+## Mục tiêu 2: Kế hoạch thành bài báo có tính mới
+
+### Bước 2.1 — Chốt tuyên bố tính mới (làm ngay)
+
+Viết một đoạn cố định và dùng xuyên suốt:
+
+> Chúng tôi đề xuất mô hình kẻ tấn công đầu tiên cho bộ phát hiện slopsquatting, trong đó kẻ tấn công chỉ được chọn **biến thể tên mà LLM thật sự gợi ý**, phải **đăng ký được trên PyPI**, và làm giả metadata trong **ngân sách có định giá**. Chúng tôi đo mức nguy hiểm bằng tỷ lệ né có trọng số tần suất (RER), cho thấy giả định "tự do sửa tên" của các nghiên cứu trước làm sai lệch mức nguy hiểm, và đề xuất bộ phát hiện bền vững theo chi phí.
+
+Ranh giới với công trình đã có (không nhận các điểm này là mới):
+
+- Chia đặc trưng metadata dễ/khó thao túng: MeMPtec (Halder và cộng sự, 2024).
+- Huấn luyện đối kháng cho bộ phát hiện gói độc hại PyPI: Montaruli và cộng sự (2025).
+- Bộ phát hiện hai tầng tra PyPI + mô hình: Raj và Sahu (2026).
+- Tên bịa chung giữa nhiều LLM và kiểm tra khả năng đăng ký: Churilov (2026).
+
+**Việc kiểm tra:** trước khi nộp bài, tìm lại trên arXiv và Google Scholar với các từ khóa "slopsquatting adversarial", "package hallucination detector evasion", "hallucinated package robust". Phạm vi khảo sát hiện tại khoảng 24 bài.
+
+### Bước 2.2 — Bộ biến thể (đóng góp dữ liệu chính, 1 tuần)
+
+```bash
+python ../experiments/collect/generate.py requery --src ext/own/full_<llm>.jsonl --index simple.json --out ext/own/variants_<llm>.jsonl --n 10 --max-names 500
+```
+
+Mỗi dòng đầu ra có: câu hỏi, tên gốc, số lần tên gốc lặp lại trong 10 lần, mọi tên sinh ra và tần suất.
+
+**Đo:**
+
+- Phân phối số lần lặp lại của tên gốc (so với Spracklen: 43% lặp cả 10 lần, 39% không lặp lần nào).
+- Số biến thể bịa khác nhau trên mỗi câu hỏi.
+- Tỷ lệ biến thể đăng ký được theo quy tắc `ultranormalize`.
+
+**Điểm quyết định:**
+
+| Kết quả đo | Hướng bài báo |
+| --- | --- |
+| Trung bình ≥ 2 biến thể bịa đăng ký được mỗi câu hỏi | Giữ nguyên trọng tâm: tấn công né tránh thực tế cộng phòng thủ |
+| < 2 biến thể (LLM gần như luôn lặp một tên) | Đổi trọng tâm sang H3: "tấn công né tránh thực tế khó hơn giả định"; phần tấn công chủ yếu dựa vào làm giả metadata |
+
+### Bước 2.3 — Bảng chi phí làm giả metadata (2–3 ngày, chỉ đọc tài liệu)
+
+Với mỗi đặc trưng: chi phí bằng USD hoặc số ngày chờ, nguồn trích dẫn, và có làm giả được hay không. Gợi ý phân nhóm:
+
+| Nhóm | Đặc trưng | Chi phí |
+| --- | --- | --- |
+| Miễn phí, tức thì | Mô tả, tóm tắt, tác giả, giấy phép, classifier, project URL, số phụ thuộc, số bản phát hành | 0 |
+| Rẻ | Tạo repo GitHub, lượt tải tự tạo, sao GitHub mua | Trích nguồn công bố về chợ mua sao và lượt tải giả |
+| Phải chờ | Tuổi gói, số ngày có lượt tải | Số ngày |
+| Không làm giả được | URL được PyPI xác minh từ repo không thuộc kẻ tấn công; mức đồng thuận giữa các LLM; số dự án thật phụ thuộc | — |
+
+### Bước 2.4 — Thí nghiệm tấn công (2 tuần)
+
+Mở rộng E3 và E4 trong `run_experiments.py`:
+
+1. **Ngoài mẫu:** mục tiêu tấn công lấy từ phần kiểm thử của kiểm định chéo, không dùng mô hình đã thấy mục tiêu.
+2. **RER theo ngân sách:** tập hành động là bộ biến thể ở bước 2.2, metadata làm giả theo bảng ở bước 2.3; vẽ RER theo ngân sách (ngày, USD).
+3. **Mốc tự do sửa ký tự:** HotFlip và Faster-GCG trên CharCNN, cùng tập mục tiêu, cùng ngưỡng.
+4. **Chỉ số so sánh (RQ2):** hiệu giữa tỷ lệ né khi tự do sửa ký tự và RER thực tế.
+
+### Bước 2.5 — Phòng thủ (2 tuần)
+
+So sánh ba cách trên cùng RER và FPR:
+
+1. Chỉ dùng tên và đặc trưng ở hai nhóm "phải chờ" và "không làm giả được".
+2. XGBoost với ràng buộc đơn điệu trên đặc trưng rẻ.
+3. Huấn luyện đối kháng bằng biến thể thật và metadata giả.
+
+**Điều kiện thành công (H4):** RER giảm ít nhất một nửa so với bộ phát hiện chuẩn, FPR trên gói mới ≤ 2%.
+
+### Bước 2.6 — Viết bài và công bố có trách nhiệm (4 tuần)
+
+1. Gửi danh sách tên bịa đăng ký được cho PyPI Security (security@pypi.org) trước khi nộp bài; ghi ngày gửi.
+2. Viết theo cấu trúc 7 phần ở mục 7.3 của [bao-cao-thu-nghiem-pilot.md](bao-cao-thu-nghiem-pilot.md).
+3. Công bố mã và số liệu tổng hợp; bộ tên đầy đủ chỉ cấp theo yêu cầu cho tới khi hết thời hạn công bố.
+4. Nơi gửi: ACM AISec (thường có hạn nộp khoảng tháng 6–7), ACSAC (khoảng tháng 5–6), hoặc *Computers & Security* (không có hạn nộp cố định). Kiểm tra lại hạn nộp thực tế của năm 2027.
+
+---
+
+## Lịch tổng hợp
+
+| Tuần | Mục tiêu 1 | Mục tiêu 2 |
+| --- | --- | --- |
+| 1 (11/2026) | 1.1 Chạy thử nhỏ | 2.1 Chốt tuyên bố tính mới |
+| 2–3 | 1.2 Sinh dữ liệu đầy đủ; 1.3 Metadata | 2.3 Bảng chi phí |
+| 4 (12/2026) | 1.4 Dựng bộ dữ liệu | 2.2 Bộ biến thể → **điểm quyết định** |
+| 5–6 | 1.5 Chọn mô hình; 1.6 Báo cáo | — |
+| 7–8 (01/2027) | — | 2.4 Tấn công |
+| 9–10 (02/2027) | — | 2.5 Phòng thủ |
+| 11–14 (03–04/2027) | — | 2.6 Viết bài |
+
+## Chi phí ước tính
+
+| Hạng mục | Ước tính |
+| --- | --- |
+| GPU thuê cho LLM cục bộ (khoảng 23.000 lượt × tối đa 1.500 token ≈ 35 triệu token; vLLM chạy theo lô trên một GPU 24 GB đạt cỡ 1.000–2.000 token/giây → khoảng 5–10 giờ GPU) | Khoảng 5–20 USD |
+| LLM thương mại (khoảng 23.000 lượt gọi, mỗi lượt khoảng 1.500 token ra) | Phụ thuộc giá mô hình: nhân số lượt với giá token ra; chạy bước 1.1 để có số thực |
+| BigQuery | Miễn phí nếu lọc theo ngày (≤ 1 TB quét/tháng) |
+| GitHub API | Miễn phí với token cá nhân |

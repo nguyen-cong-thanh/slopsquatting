@@ -22,10 +22,13 @@ def add(name, group, src, model="", q="", seen=""):
 
 for r in csv.DictReader(open(f"{EXT}/slopsquatting-dataset/slopsquatting.csv")):
     if r["ecosystem"] == "PyPI": add(r["name"], "halluc", "0pstech", r["models"], r["tasks"][:80], r["first_seen"][:10])
-for l in open(f"{EXT}/slopsquatting/slopsquatting.jsonl"):
-    d = json.loads(l); bad = {norm(x) for x in d["modulenotfound"]}
-    for m in d["modules"]:
-        add(m, "halluc" if norm(m) in bad else "real_llm", "trendmicro", d["model"], d["question_index"])
+import glob   # Trend Micro + dữ liệu tự sinh (experiments/collect/generate.py gen) đặt trong <ext>/own/*.jsonl
+for path in [f"{EXT}/slopsquatting/slopsquatting.jsonl"] + sorted(glob.glob(f"{EXT}/own/*.jsonl")):
+    src = "trendmicro" if "/slopsquatting/" in path else "own"
+    for l in open(path):
+        d = json.loads(l); bad = {norm(x) for x in d["modulenotfound"]}
+        for m in d["modules"]:
+            add(m, "halluc" if norm(m) in bad else "real_llm", src, d["model"], d["question_index"])
 for e in json.load(open(f"{EXT}/depscope-hallucinations-dataset/snapshots/2026-09-20.json"))["entries"]:
     if e["ecosystem"] == "pypi": add(e["package_name"], "halluc", "depscope")
 for n in open(f"{WORK}/ossf_pypi.txt"): add(n, "malicious", "ossf")
