@@ -85,7 +85,7 @@ Nghiên cứu theo thiết kế **thực nghiệm so sánh** (comparative experi
 
 | Mã | Câu hỏi | Lớp dương | Lớp âm (huấn luyện) | Tập giữ riêng |
 | --- | --- | --- | --- | --- |
-| E1 | Chỉ dùng tên có phân biệt được tên bịa và tên thật không? | 1.214 tên bịa | 9.769 gói tham chiếu | 291 tên thật do LLM gợi ý; 9.907 gói PyPI ngẫu nhiên |
+| E1 | Chỉ dùng tên có phân biệt được tên bịa và tên thật không? | 1.214 tên bịa | 9.769 gói tham chiếu | 291 tên thật do LLM gợi ý; 9.906 gói PyPI ngẫu nhiên |
 | E1-chéo | Mô hình có tổng quát hóa sang LLM khác không? | Huấn luyện: 871 tên bịa của GPT; kiểm thử: 293 tên của Gemini/Claude | 80% / 20% gói tham chiếu | — |
 | E2 | Metadata đóng góp bao nhiêu ở tầng 2? | 152 gói có metadata (28 tên bịa đã đăng ký + 124 gói độc hại) | 19.304 gói thật có metadata | 291 tên thật do LLM gợi ý; 600 gói mới ≤ 60 ngày |
 | E3 | Làm giả metadata (mô phỏng) né được bao nhiêu? | 152 gói dương bị phát hiện | — | Ngưỡng FPR 1% của E2 |
