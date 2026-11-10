@@ -53,6 +53,7 @@ Các tài liệu gốc nằm trên Google Drive (file .docx, .xlsx, Google Docs,
 | [thiet-ke-du-lieu.md](docs/du-lieu/thiet-ke-du-lieu.md) | Báo cáo gửi thầy hướng dẫn: trả lời các câu hỏi về dữ liệu, bộ phát hiện hai tầng có dùng metadata, đóng góp khoa học, thay đổi so với đề cương | 07/11/2026 |
 | [bao-cao-thu-nghiem-pilot.md](docs/du-lieu/bao-cao-thu-nghiem-pilot.md) | **Mới nhất.** Pilot định lượng trên dữ liệu công khai + metadata PyPI: chọn mô hình, tấn công làm giả metadata, giả thuyết, cỡ mẫu và lộ trình bài báo. Mã: [`experiments/pilot/`](experiments/pilot/) | 09/11/2026 |
 | [huong-dan-trien-khai.md](docs/du-lieu/huong-dan-trien-khai.md) | Hướng dẫn từng bước theo hai mục tiêu (dữ liệu và đo đạc; kế hoạch bài báo), kèm lệnh chạy, điều kiện đạt, điểm quyết định, lịch và chi phí. Có mục riêng cho LLM thương mại (chọn mô hình, cách chạy, chi phí). Script sinh dữ liệu: [`experiments/collect/`](experiments/collect/) | 09/11/2026 |
+| [mo-rong-mo-hinh.md](docs/du-lieu/mo-rong-mo-hinh.md) | Mở rộng số LLM theo tầng (A bắt buộc, B cục bộ miễn phí token, C thương mại 500 câu) và hình so sánh tự động: tỷ lệ bịa, độ trùng tên, phát hiện chéo. Có chạy thử trên 14 LLM của Trend Micro. Mã: [`experiments/compare/`](experiments/compare/) | 10/11/2026 |
 | [de-xuat-chot-input-output.md](docs/du-lieu/de-xuat-chot-input-output.md) | **Gửi thầy hướng dẫn.** Đề xuất chốt input/output của bài toán và từng thành phần, sản phẩm cuối, 10 điểm cần duyệt, việc tuần này | 09/11/2026 |
 
 ## Đạo đức nghiên cứu

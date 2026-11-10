@@ -78,7 +78,7 @@ Chi tiết và hạn chế ở [bao-cao-thu-nghiem-pilot.md](bao-cao-thu-nghiem-
 | # | Điểm cần chốt | Đề xuất | Phương án thay thế |
 | --- | --- | --- | --- |
 | 1 | Hệ sinh thái | Chỉ PyPI | PyPI + npm (tăng gấp đôi khối lượng) |
-| 2 | LLM | Qwen2.5-Coder-7B chạy cục bộ (nguồn dữ liệu chính) + Claude Haiku 5.5 qua Batch API; chỉ chuyển sang GPT mini nếu Haiku ngoại suy được < 500 tên bịa không trùng | Thêm LLM thứ ba nếu còn ngân sách |
+| 2 | LLM | Qwen2.5-Coder-7B chạy cục bộ (nguồn dữ liệu chính) + Claude Haiku 5.5 qua Batch API; chỉ chuyển sang GPT mini nếu Haiku ngoại suy được < 500 tên bịa không trùng | Mở rộng theo tầng: DeepSeek-Coder, CodeLlama, Qwen 32B (cục bộ, 2.000 câu chung), Claude Sonnet 5.5, GPT mini, Gemini Flash (500 câu chung) — xem [mo-rong-mo-hinh.md](mo-rong-mo-hinh.md) |
 | 3 | Đơn vị đếm | Tên không trùng (chuẩn hóa PEP 503) | Đếm theo lượt gợi ý (như Spracklen) — báo cả hai |
 | 4 | Chỉ số chính | TPR@1%FPR (bộ phát hiện) và RER theo ngân sách (tấn công) | Precision/Recall/F1 chỉ báo phụ |
 | 5 | Tập giữ riêng để đặt ngưỡng | ≥ 1.521 tên thật do LLM gợi ý | — |
