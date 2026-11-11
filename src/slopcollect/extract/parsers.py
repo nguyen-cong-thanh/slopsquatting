@@ -59,6 +59,8 @@ _STOPWORDS = {
     "and", "or", "then", "to", "first", "if", "in", "with", "using", "the", "package", "packages",
     "library", "libraries", "module", "command", "via", "it", "this", "these", "them", "for", "as",
     "is", "are", "you", "your", "also", "by", "on", "from", "run", "running", "e.g.", "i.e.",
+    "note", "usually", "typically", "which", "that", "will", "can", "should", "may", "might", "but",
+    "instead", "before", "after", "now", "here", "there", "via", "inside", "into", "within", "not",
 }
 _SPEC_SPLIT = re.compile(r"\s*(?:===|==|>=|<=|~=|!=|<|>|@|;)")
 _NAME_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -92,8 +94,8 @@ def find_pip_installs(text: str) -> list[Found]:
             word = tok.lower().strip(".,:")
             if word in ("and", "or", "&"):
                 continue  # "pip install requests and numpy"
-            if word in _STOPWORDS:
-                break  # hết phần tên gói trong câu văn
+            if word in _STOPWORDS or tok.startswith("(") or "'" in tok or (tok.endswith(":") and not tok.endswith("::")):
+                break  # hết phần tên gói: câu văn, ghi chú trong ngoặc, "Note:", "it's"
             name = _clean_requirement(tok)
             if name is None:
                 # Gặp từ không phải tên gói trong câu văn: dừng lại; trong lệnh (token nhìn như đối số) thì bỏ qua.
@@ -142,24 +144,54 @@ def _stdlib_modules() -> frozenset[str]:
     return frozenset(names)
 
 
-@lru_cache(maxsize=1)
-def module_to_package() -> dict[str, str | None]:
-    """Bảng module -> gói của pipreqs. Module ứng với nhiều gói khác nhau thì ghi None (không đoán)."""
-    text = resources.files("slopcollect.extract").joinpath("data/pipreqs_mapping.txt").read_text(encoding="utf-8")
+def _read_mapping(name: str) -> dict[str, set[str]]:
+    text = resources.files("slopcollect.extract").joinpath(f"data/{name}").read_text(encoding="utf-8")
     seen: dict[str, set[str]] = {}
     for line in text.splitlines():
-        if ":" not in line:
+        line = line.strip()
+        if not line or line.startswith("#") or ":" not in line:
             continue
-        mod, pkg = line.strip().split(":", 1)
+        mod, pkg = line.split(":", 1)
         seen.setdefault(mod, set()).add(pkg)
-    return {m: (next(iter(p)) if len(p) == 1 else None) for m, p in seen.items()}
+    return seen
+
+
+@lru_cache(maxsize=1)
+def module_to_package() -> dict[str, str | None]:
+    """Bảng module -> gói: pipreqs, rồi bảng bổ sung (ưu tiên). Module ứng với nhiều gói thì ghi None (không đoán)."""
+    out = {m: (next(iter(p)) if len(p) == 1 else None) for m, p in _read_mapping("pipreqs_mapping.txt").items()}
+    out.update({m: next(iter(p)) for m, p in _read_mapping("extra_mapping.txt").items()})
+    return out
+
+
+# Namespace dùng chung của nhiều gói: tên gói suy từ tên module đầy đủ.
+_GOOGLE_FIXED = {
+    "oauth2": "google-auth", "auth": "google-auth", "protobuf": "protobuf", "generativeai": "google-generativeai",
+    "genai": "google-genai", "colab": "google-colab", "api_core": "google-api-core", "adk": "google-adk",
+}
+
+
+def namespace_package(dotted: str) -> str | None:
+    """google.cloud.storage -> google-cloud-storage; google.oauth2 -> google-auth; azure.storage.blob -> azure-storage-blob."""
+    parts = dotted.split(".")
+    if parts[0] == "google" and len(parts) >= 2:
+        if parts[1] == "cloud" and len(parts) >= 3:
+            return f"google-cloud-{parts[2].replace('_', '-')}"
+        return _GOOGLE_FIXED.get(parts[1])
+    if parts[0] == "azure" and len(parts) >= 2:
+        if parts[1] == "identity":
+            return "azure-identity"
+        tail = parts[1:3] if parts[1] in ("storage", "mgmt", "ai", "cosmos", "keyvault", "monitor", "servicebus", "eventhub") else parts[1:2]
+        return "azure-" + "-".join(p.replace("_", "-") for p in tail)
+    return None
 
 
 _IMPORT_RE = re.compile(r"^\s*import\s+([A-Za-z_][\w.]*(?:\s+as\s+\w+)?(?:\s*,\s*[A-Za-z_][\w.]*(?:\s+as\s+\w+)?)*)", re.MULTILINE)
 _FROM_RE = re.compile(r"^\s*from\s+([A-Za-z_][\w.]*)\s+import\b", re.MULTILINE)
 
 
-def _top_modules(code: str) -> list[str]:
+def _imported_modules(code: str) -> list[str]:
+    """Tên module đầy đủ (có dấu chấm) trong các lệnh import tuyệt đối. ``from a.b import c`` -> a.b.c."""
     try:
         tree = ast.parse(code)
     except (SyntaxError, ValueError):
@@ -168,13 +200,14 @@ def _top_modules(code: str) -> list[str]:
             for part in m.group(1).split(","):
                 mods.append(part.split()[0])
         mods += [m.group(1) for m in _FROM_RE.finditer(code)]
-        return [m.split(".")[0] for m in mods]
+        return mods
     mods: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            mods += [a.name.split(".")[0] for a in node.names]
+            mods += [a.name for a in node.names]
         elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            mods.append(node.module.split(".")[0])
+            # from google import genai -> google.genai (để nhận ra gói trong namespace)
+            mods += [f"{node.module}.{a.name}" for a in node.names if a.name != "*"] or [node.module]
     return mods
 
 
@@ -182,13 +215,22 @@ def find_imports(text: str) -> list[Found]:
     out: list[Found] = []
     std = _stdlib_modules()
     mapping = module_to_package()
+    seen: set[str] = set()
     for lang, code in code_blocks(text):
         if lang not in ("", "python", "py", "python3", "ipython", "jupyter"):
             continue
-        for mod in dict.fromkeys(_top_modules(code)):
-            if mod in std:
+        for dotted in _imported_modules(code):
+            top = dotted.split(".")[0]
+            if top in std:
                 continue
-            pkg = mapping.get(mod) or mod
+            ns = namespace_package(dotted)
+            if ns:
+                pkg, mod = ns, ".".join(dotted.split(".")[: 3 if dotted.startswith(("google.cloud.", "azure.")) else 2])
+            else:
+                pkg, mod = (mapping.get(top) or top), top
+            if pkg in seen:
+                continue
+            seen.add(pkg)
             out.append(Found("import", pkg, f"import {mod}", module=mod))
     return out
 

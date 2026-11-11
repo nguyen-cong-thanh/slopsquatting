@@ -12,16 +12,30 @@ from slopcollect.extract.normalize import is_valid_project_name, normalize_pep42
 from slopcollect.extract.parsers import EXTRACTORS
 from slopcollect.registry import register
 
-EXTRACTOR_VERSION = "x1"
+# x1: bản đầu. x2: dừng ở ghi chú trong ngoặc sau "pip install"; bảng ánh xạ bổ sung; namespace google.*/azure.*.
+EXTRACTOR_VERSION = "x2"
 
 
 @register("stage", "extract")
-def extract(ctx: Any, version: str = EXTRACTOR_VERSION, methods: dict[str, list[str]] | None = None, batch: int = 500) -> dict[str, Any]:
+def extract(
+    ctx: Any,
+    version: str = EXTRACTOR_VERSION,
+    methods: dict[str, list[str]] | None = None,
+    batch: int = 500,
+    replace_other_versions: bool = True,
+) -> dict[str, Any]:
     """Trích tên cho mọi câu trả lời chưa được trích ở phiên bản ``version``.
 
     methods: ghi đè cách trích theo tác vụ, ví dụ {spracklen_code_v1 = ["pip_install"]}.
+    replace_other_versions: xóa kết quả của các phiên bản bộ trích khác, để không đếm trùng
+    (các bước sau đọc mọi dòng trong bảng mentions).
     """
     conn = ctx.conn
+    removed = 0
+    if replace_other_versions:
+        with conn:
+            removed = conn.execute("DELETE FROM mentions WHERE extractor_version != ?", (version,)).rowcount
+            conn.execute("DELETE FROM extract_done WHERE extractor_version != ?", (version,))
     rows = conn.execute(
         "SELECT g.gen_id, g.task_id, g.response_text, g.finish_reason FROM generations g "
         "WHERE g.error IS NULL AND g.response_text IS NOT NULL AND NOT EXISTS ("
@@ -62,4 +76,4 @@ def extract(ctx: Any, version: str = EXTRACTOR_VERSION, methods: dict[str, list[
         if i % batch == 0:
             conn.commit()
     conn.commit()
-    return {"generations": n_gen, "mentions": n_mentions, "per_method": per_method, "version": version}
+    return {"generations": n_gen, "mentions": n_mentions, "per_method": per_method, "version": version, "removed_old_mentions": removed}

@@ -33,6 +33,30 @@ You can also pip install beautifulsoup4 and lxml first.
     ]
 
 
+def test_pip_install_stops_at_parenthetical_note():
+    text = "pip install djangorestframework (Note: Usually it's django-extensions)"
+    assert names(find_pip_installs(text)) == ["djangorestframework"]
+    assert names(find_pip_installs("pip install foo bar. Note: restart the server")) == ["foo", "bar"]
+
+
+def test_imports_extra_mapping_and_namespaces():
+    text = """```python
+import aws_cdk as cdk
+from mpl_toolkits.mplot3d import Axes3D
+import win32com.client
+from google.oauth2 import service_account
+from google.cloud import storage, bigquery
+from google import genai
+from azure.storage.blob import BlobServiceClient
+from azure.identity import DefaultAzureCredential
+import google_auth2
+```"""
+    assert [f.name for f in find_imports(text)] == [
+        "aws-cdk-lib", "matplotlib", "pywin32", "google-auth", "google-cloud-storage", "google-cloud-bigquery",
+        "google-genai", "azure-storage-blob", "azure-identity", "google_auth2",
+    ]
+
+
 def test_pip_install_skips_paths_urls_and_editable():
     text = "pip install -e . git+https://github.com/a/b.git ./local_pkg dist/x-1.0-py3-none-any.whl realpkg"
     assert names(find_pip_installs(text)) == ["realpkg"]
