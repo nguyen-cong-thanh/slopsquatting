@@ -57,6 +57,22 @@ import google_auth2
     ]
 
 
+def test_imports_from_does_not_glue_class_names():
+    text = """```python
+from azure.cosmos import CosmosClient
+from azure.eventhub import EventHubProducerClient
+from google.cloud import logging_v2, pubsub_v1, exceptions
+from google.cloud.vision_v1 import ImageAnnotatorClient
+from flask import Flask
+import objc
+from debug_toolbar.middleware import DebugToolbarMiddleware
+```"""
+    assert [f.name for f in find_imports(text)] == [
+        "azure-cosmos", "azure-eventhub", "google-cloud-logging", "google-cloud-pubsub", "google-cloud-core",
+        "google-cloud-vision", "Flask", "pyobjc", "django-debug-toolbar",  # Flask: tên trong bảng pipreqs, chuẩn hóa sau
+    ]
+
+
 def test_pip_install_skips_paths_urls_and_editable():
     text = "pip install -e . git+https://github.com/a/b.git ./local_pkg dist/x-1.0-py3-none-any.whl realpkg"
     assert names(find_pip_installs(text)) == ["realpkg"]

@@ -171,12 +171,22 @@ _GOOGLE_FIXED = {
 }
 
 
+_NAMESPACE_ROOTS = {"google", "google.cloud", "azure"}
+# Module chung của google.cloud nằm trong gói google-cloud-core.
+_GOOGLE_CLOUD_CORE = {"exceptions", "client", "_helpers", "environment_vars", "operation", "iam", "_http", "obsolete"}
+_VERSION_SUFFIX = re.compile(r"_v\d+(?:p\d+)?(?:(?:alpha|beta)\d*)?$")
+
+
 def namespace_package(dotted: str) -> str | None:
-    """google.cloud.storage -> google-cloud-storage; google.oauth2 -> google-auth; azure.storage.blob -> azure-storage-blob."""
+    """google.cloud.storage -> google-cloud-storage; google.cloud.logging_v2 -> google-cloud-logging;
+    google.oauth2 -> google-auth; azure.storage.blob -> azure-storage-blob."""
     parts = dotted.split(".")
     if parts[0] == "google" and len(parts) >= 2:
         if parts[1] == "cloud" and len(parts) >= 3:
-            return f"google-cloud-{parts[2].replace('_', '-')}"
+            sub = _VERSION_SUFFIX.sub("", parts[2])
+            if sub in _GOOGLE_CLOUD_CORE:
+                return "google-cloud-core"
+            return f"google-cloud-{sub.replace('_', '-')}"
         return _GOOGLE_FIXED.get(parts[1])
     if parts[0] == "azure" and len(parts) >= 2:
         if parts[1] == "identity":
@@ -206,8 +216,12 @@ def _imported_modules(code: str) -> list[str]:
         if isinstance(node, ast.Import):
             mods += [a.name for a in node.names]
         elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            # from google import genai -> google.genai (để nhận ra gói trong namespace)
-            mods += [f"{node.module}.{a.name}" for a in node.names if a.name != "*"] or [node.module]
+            if node.module in _NAMESPACE_ROOTS:
+                # from google import genai / from google.cloud import storage: tên sau "import" là gói con
+                mods += [f"{node.module}.{a.name}" for a in node.names if a.name != "*"] or [node.module]
+            else:
+                # from azure.cosmos import CosmosClient: tên sau "import" là class/hàm, không phải gói
+                mods.append(node.module)
     return mods
 
 

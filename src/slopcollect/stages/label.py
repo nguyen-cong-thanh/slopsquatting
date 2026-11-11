@@ -6,6 +6,7 @@ Nhãn:
   registered_hallucination  tên có trên PyPI nhưng nghi do người khác đăng ký theo tên bịa (lớp đáng ngờ)
   placeholder               bản giữ chỗ / phòng vệ trỏ sang gói đúng
   known_malicious           có trong danh sách gói độc hại đã biết
+  stdlib                    tên module thư viện chuẩn (json, os...): không phải tên bịa, PyPI cấm đăng ký
   unlabeled                 có trên PyPI nhưng chưa có metadata để quyết định
 
 Các nhãn đoán bằng heuristic được đánh dấu needs_review và xuất ra CSV để duyệt tay. Kết quả duyệt
@@ -28,6 +29,7 @@ from slopcollect.util import parse_time, utcnow
 DEFAULT_RULES = [
     "override",
     "known_malicious",
+    "stdlib_name",
     "absent",
     "missing_metadata",
     "empty_project",
@@ -52,7 +54,7 @@ DEFAULT_PLACEHOLDER_PATTERNS = [
     r"\bnot the package you\b",
 ]
 
-LABELS = {"real", "hallucinated_absent", "registered_hallucination", "placeholder", "known_malicious", "unlabeled"}
+LABELS = {"real", "hallucinated_absent", "registered_hallucination", "placeholder", "known_malicious", "unlabeled", "stdlib"}
 
 Verdict = tuple[str, bool, dict[str, Any]]
 
@@ -67,6 +69,16 @@ def rule_override(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
 def rule_known_malicious(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
     hit = sorted(info["lists"] & set(cfg["malicious_lists"]))
     return ("known_malicious", False, {"lists": hit}) if hit else None
+
+
+@register("label_rule", "stdlib_name")
+def rule_stdlib_name(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
+    # LLM liệt kê module thư viện chuẩn (json, os, subprocess) như một gói: không phải tên bịa,
+    # và PyPI cấm đăng ký các tên này nên không bị lợi dụng.
+    st = info["status"]
+    if not st["exists_on_pypi"] and st["reason"] == "stdlib":
+        return ("stdlib", False, {})
+    return None
 
 
 @register("label_rule", "absent")

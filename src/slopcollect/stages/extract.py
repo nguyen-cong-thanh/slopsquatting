@@ -13,7 +13,8 @@ from slopcollect.extract.parsers import EXTRACTORS
 from slopcollect.registry import register
 
 # x1: bản đầu. x2: dừng ở ghi chú trong ngoặc sau "pip install"; bảng ánh xạ bổ sung; namespace google.*/azure.*.
-EXTRACTOR_VERSION = "x2"
+# x3: "from a.b import C" không ghép C (trừ gốc namespace); bỏ hậu tố _v1 ở google.cloud; thêm ánh xạ.
+EXTRACTOR_VERSION = "x3"
 
 
 @register("stage", "extract")

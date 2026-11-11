@@ -91,7 +91,8 @@ def stats(
     for r in mention_rows:
         by_model[r["model_key"]].append(r)
     for model, rows in by_model.items():
-        checked = [r for r in rows if r["exists_on_pypi"] is not None]
+        # Tên module thư viện chuẩn (json, os...) không tính là tên bịa: bỏ khỏi cả tử số và mẫu số.
+        checked = [r for r in rows if r["exists_on_pypi"] is not None and not (not r["exists_on_pypi"] and r["reason"] == "stdlib")]
         absent = [r for r in checked if not r["exists_on_pypi"]]
         names = {r["norm_name"] for r in rows}
         absent_names = {r["norm_name"] for r in absent}

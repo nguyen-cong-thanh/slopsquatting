@@ -146,6 +146,19 @@ def test_check_uses_pypi_rules(root, ctx):
     assert got == cases
 
 
+def test_stdlib_names_get_own_label(root, ctx):
+    run_stage(ctx, "pypi_index", {"source": "file", "path": "fixtures/simple.json"})
+    for i, name in enumerate(["json", "subprocess", "vectorcache"]):
+        ctx.conn.execute(
+            "INSERT INTO mentions(gen_id, extractor_version, method, norm_name, raw, ultra_name, valid_name) VALUES (?,?,?,?,?,?,?)",
+            (f"g{i}", "x3", "llm_list", name, name, name, 1),
+        )
+    run_stage(ctx, "check", {})
+    run_stage(ctx, "label", {"review_csv": None})
+    labels = dict(ctx.conn.execute("SELECT norm_name, label FROM labels").fetchall())
+    assert labels == {"json": "stdlib", "subprocess": "stdlib", "vectorcache": "hallucinated_absent"}
+
+
 def test_rerun_is_idempotent(root, ctx):
     run_test_flow(root, ctx)
     counts = {t: ctx.conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("prompts", "generations", "mentions", "labels")}
