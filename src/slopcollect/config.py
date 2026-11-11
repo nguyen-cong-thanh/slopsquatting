@@ -33,7 +33,7 @@ def parse_cli_value(text: str) -> Any:
 
 
 # Tham số chỉ ảnh hưởng cách gọi, không ảnh hưởng nội dung câu trả lời -> không đưa vào khóa băm.
-_NON_IDENTITY_MODEL_KEYS = {"base_url", "concurrency", "timeout_s", "api_key_env", "description", "keep_alive"}
+_NON_IDENTITY_MODEL_KEYS = {"base_url", "concurrency", "timeout_s", "api_key_env", "api_key_file", "description", "keep_alive"}
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,7 @@ class ModelConfig:
     concurrency: int = 1
     timeout_s: float = 600.0
     api_key_env: str | None = None
+    api_key_file: str | None = None  # đọc khóa từ file (vd ~/.config/deepinfra/api_key) nếu không có biến môi trường
     description: str = ""
 
 
@@ -109,7 +110,7 @@ def load_model(root: Path, key: str) -> ModelConfig:
     missing = [k for k in ("backend", "model") if k not in raw]
     if missing:
         raise ConfigError(f"{path}: thiếu khóa {missing}")
-    known = {"key", "backend", "model", "base_url", "params", "extra", "concurrency", "timeout_s", "api_key_env", "description"}
+    known = {"key", "backend", "model", "base_url", "params", "extra", "concurrency", "timeout_s", "api_key_env", "api_key_file", "description"}
     unknown = set(raw) - known
     if unknown:
         raise ConfigError(f"{path}: khóa không hợp lệ {sorted(unknown)}")
@@ -125,6 +126,7 @@ def load_model(root: Path, key: str) -> ModelConfig:
         concurrency=int(raw.get("concurrency", 1)),
         timeout_s=float(raw.get("timeout_s", 600)),
         api_key_env=raw.get("api_key_env"),
+        api_key_file=raw.get("api_key_file"),
         description=raw.get("description", ""),
     )
 

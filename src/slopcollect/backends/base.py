@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from slopcollect.config import ModelConfig
@@ -45,12 +46,21 @@ class Backend:
         raise NotImplementedError
 
     def api_key(self) -> str | None:
-        if not self.cfg.api_key_env:
+        """Khóa API: biến môi trường api_key_env trước, rồi file api_key_file. Không cấu hình gì thì không gửi khóa."""
+        if not self.cfg.api_key_env and not self.cfg.api_key_file:
             return None
-        key = os.environ.get(self.cfg.api_key_env)
-        if not key:
-            raise BackendError(f"Chưa đặt biến môi trường {self.cfg.api_key_env}", transient=False)
-        return key
+        if self.cfg.api_key_env and os.environ.get(self.cfg.api_key_env):
+            return os.environ[self.cfg.api_key_env].strip()
+        if self.cfg.api_key_file:
+            path = Path(self.cfg.api_key_file).expanduser()
+            if path.is_file():
+                key = path.read_text(encoding="utf-8").strip()
+                if key:
+                    return key
+        raise BackendError(
+            f"Không tìm thấy khóa API: đặt biến {self.cfg.api_key_env or '(không)'} hoặc tạo file {self.cfg.api_key_file or '(không)'}",
+            transient=False,
+        )
 
 
 _THINK_RE = re.compile(r"<think>(.*?)</think>", re.DOTALL)

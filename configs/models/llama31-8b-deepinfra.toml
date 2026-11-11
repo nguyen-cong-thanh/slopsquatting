@@ -1,0 +1,17 @@
+description = "Llama 3.1 8B Instruct (bản Turbo của DeepInfra) qua API chuẩn OpenAI. Khóa API đọc từ file, không nằm trong repo."
+backend = "openai_compat"
+base_url = "https://api.deepinfra.com/v1/openai"
+model = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+api_key_env = "DEEPINFRA_API_KEY"
+api_key_file = "~/.config/deepinfra/api_key"
+concurrency = 32
+timeout_s = 300
+
+[params]
+# Llama 3.1 không có chế độ suy nghĩ: không gửi tham số think.
+seed_mode = "per_sample"
+
+[extra]
+think_style = "none"
+send_top_k = true
+send_seed = true
