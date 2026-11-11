@@ -222,6 +222,16 @@ MERGE_TABLES = (
 )
 
 
+def connect_readonly(path: Path | str) -> sqlite3.Connection:
+    """Mở CSDL chỉ để đọc (status, info): không ghi gì, nên không tranh khóa với luồng đang chạy."""
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"Chưa có CSDL: {p}")
+    conn = sqlite3.connect(f"file:{p}?mode=ro", uri=True, timeout=60)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
 def connect(path: Path | str) -> sqlite3.Connection:
     p = Path(path)
     if str(p) != ":memory:":

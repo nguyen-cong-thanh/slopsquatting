@@ -25,7 +25,7 @@ from typing import Any
 
 from slopcollect import registry
 from slopcollect.config import ConfigError, FlowConfig, load_flow, parse_cli_value
-from slopcollect.db import connect
+from slopcollect.db import connect, connect_readonly
 from slopcollect.pipeline import Context, run_flow, run_stage
 from slopcollect.util import NetworkError
 
@@ -124,9 +124,10 @@ def _parse_params(items: list[str]) -> dict:
     return params
 
 
-def _context(root: Path, db: str) -> Context:
+def _context(root: Path, db: str, *, readonly: bool = False) -> Context:
     db_path = Path(db) if Path(db).is_absolute() else root / db
-    return Context(conn=connect(db_path), root=root, db_path=db_path)
+    conn = connect_readonly(db_path) if readonly else connect(db_path)
+    return Context(conn=conn, root=root, db_path=db_path)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -201,11 +202,11 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.cmd == "status":
             flow = load_flow(Path(args.flow))
-            ctx = _context(root, args.db or flow.db)
+            ctx = _context(root, args.db or flow.db, readonly=True)
             print_status(ctx, flow)
             return 0
 
-        ctx = _context(root, args.db or DEFAULT_DB)
+        ctx = _context(root, args.db or DEFAULT_DB, readonly=args.cmd == "info")
         if args.cmd == "stage":
             print(json.dumps(run_stage(ctx, args.name, _parse_params(args.params)), ensure_ascii=False, indent=2, default=str))
         elif args.cmd == "merge":
