@@ -1,0 +1,29 @@
+# Toàn bộ 18.033 câu hỏi trên Qwen 3.5 4B. Dừng (Ctrl-C) rồi chạy lại lệnh sẽ tiếp tục từ chỗ dừng.
+[flow]
+name = "local-full"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "load_prompts"
+source = "spracklen"
+
+[[steps]]
+name = "gen-code"
+stage = "generate"
+model = "qwen35-4b-kali"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+
+[[steps]]
+name = "gen-pkgs-code"
+stage = "generate"
+model = "qwen35-4b-kali"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+
+[[steps]]
+name = "gen-pkgs-prompt"
+stage = "generate"
+model = "qwen35-4b-kali"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]

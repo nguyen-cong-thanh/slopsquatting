@@ -1,0 +1,25 @@
+# Chạy trên máy GLM: hỏi lại câu gốc cho các tên GLM đã bịa (file data/prompts_variants.jsonl
+# do flows/variants-select.toml xuất ra), tổng 10 lần mỗi câu. Xong thì mang data/glm.sqlite về.
+[flow]
+name = "glm-variants"
+db = "data/glm.sqlite"
+
+[[steps]]
+stage = "load_prompts"
+source = "jsonl"
+path = "data/prompts_variants.jsonl"
+
+[[steps]]
+name = "gen-code"
+stage = "generate"
+model = "glm53-internal"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:glm53-internal"]
+n_samples = 10
+
+[[steps]]
+name = "gen-pkgs-code"
+stage = "generate"
+model = "glm53-internal"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:glm53-internal"]

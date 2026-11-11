@@ -1,0 +1,24 @@
+description = "Qwen 3.5 4B chạy bằng Ollama trên máy kali (Tailscale), RTX 3050 Mobile 4 GB VRAM"
+backend = "ollama"
+base_url = "http://100.86.126.91:11434"
+model = "qwen3.5:4b"
+concurrency = 1        # một GPU 4 GB: chạy tuần tự; tăng lên nếu đặt OLLAMA_NUM_PARALLEL trên máy kali
+timeout_s = 900
+
+[params]
+# Tắt suy nghĩ (thinking): mô phỏng trợ lý code thông thường và chạy nhanh hơn.
+think = false
+# Mỗi lần hỏi có seed riêng, suy ra từ khóa của lần hỏi -> chạy lại cho cùng kết quả.
+seed_mode = "per_sample"
+
+[extra]
+keep_alive = "30m"
+
+[extra.options]
+# Đo ngày 11/11/2026 trên kali (RTX 3050 Mobile, driver nouveau, Ollama dùng Vulkan/NVK), num_ctx 8192:
+#   tự chọn (21/33 lớp lên GPU): ~13 token/s
+#   33/33 lớp: ~26 token/s lúc mới nạp, nhưng VRAM đầy -> driver đẩy bộ nhớ ra RAM, tụt còn 1,6 token/s
+#   28/33 lớp: ổn định ~20 token/s, đọc câu hỏi ~185 token/s  <- chọn
+# num_gpu chỉ ảnh hưởng tốc độ, không nằm trong khóa băm: chỉnh giữa chừng không mất dữ liệu đã sinh.
+num_ctx = 8192
+num_gpu = 28

@@ -1,0 +1,14 @@
+# Chạy trên máy có Internet: nạp bộ câu hỏi Spracklen và xuất ra JSONL để mang sang máy GLM.
+# Sau đó chạy: bash scripts/make_glm_bundle.sh
+[flow]
+name = "prepare-glm"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "load_prompts"
+source = "spracklen"
+
+[[steps]]
+stage = "export_prompts"
+tags = ["spracklen"]
+out = "data/exports/prompts_spracklen.jsonl"

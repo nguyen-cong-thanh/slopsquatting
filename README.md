@@ -52,6 +52,17 @@ Các tài liệu gốc nằm trên Google Drive (file .docx, .xlsx, Google Docs,
 | --- | --- | --- |
 | [thiet-ke-du-lieu.md](docs/du-lieu/thiet-ke-du-lieu.md) | Báo cáo gửi thầy hướng dẫn: trả lời các câu hỏi về dữ liệu, bộ phát hiện hai tầng có dùng metadata, đóng góp khoa học, thay đổi so với đề cương | 07/11/2026 |
 
+## Code thu thập dữ liệu
+
+Pipeline `slopcollect` (`src/slopcollect/`) gửi câu hỏi lập trình cho LLM, lấy tên gói, tra PyPI, gắn nhãn, thu metadata và hỏi lại để thu biến thể. Đổi model hoặc đổi luồng chỉ cần sửa file TOML trong `configs/` và `flows/`. Hướng dẫn đầy đủ: [thu-thap-du-lieu.md](docs/huong-dan/thu-thap-du-lieu.md). Hướng dẫn cho máy GLM không có Internet: [chay-tren-may-glm.md](docs/huong-dan/chay-tren-may-glm.md).
+
+```bash
+uv sync --all-extras
+uv run pytest
+uv run python -m slopcollect run flows/smoke.toml    # chạy thử cả luồng với model giả
+uv run python -m slopcollect run flows/pilot.toml    # 200 câu trên Qwen 3.5 4B (máy kali)
+```
+
 ## Đạo đức nghiên cứu
 
 Toàn bộ thực nghiệm chạy trong môi trường mô phỏng có kiểm soát. Không đăng ký bất kỳ tên gói nào lên registry công khai.

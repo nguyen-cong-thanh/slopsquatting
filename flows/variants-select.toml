@@ -1,0 +1,15 @@
+# Sau label-enrich: chọn khoảng 500 tên bịa (chia đều giữa các model) để hỏi lại câu gốc,
+# và xuất câu hỏi đã chọn cho GLM ra JSONL (mang sang máy GLM cùng flows/glm-variants.toml).
+[flow]
+name = "variants-select"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "select_variants"
+selection_id = "variants-v1"
+n = 500
+
+[[steps]]
+stage = "export_prompts"
+tags = ["sel:variants-v1:glm53-internal"]
+out = "data/exports/prompts_variants_glm.jsonl"

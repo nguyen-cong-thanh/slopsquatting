@@ -1,0 +1,34 @@
+# Chạy trên máy GLM (không cần Internet): 200 câu hỏi đầu để đo tốc độ và kiểm tra cấu hình.
+# Thứ tự câu hỏi cố định: glm-generate.toml chạy sau đó sẽ dùng lại 200 câu này.
+[flow]
+name = "glm-pilot"
+db = "data/glm.sqlite"
+
+[[steps]]
+stage = "load_prompts"
+source = "jsonl"
+path = "data/prompts.jsonl"
+
+[[steps]]
+name = "gen-code"
+stage = "generate"
+model = "glm53-internal"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "gen-pkgs-code"
+stage = "generate"
+model = "glm53-internal"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "gen-pkgs-prompt"
+stage = "generate"
+model = "glm53-internal"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]
+limit = 200

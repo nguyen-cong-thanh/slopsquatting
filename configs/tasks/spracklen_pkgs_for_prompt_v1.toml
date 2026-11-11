@@ -1,0 +1,15 @@
+description = """
+Hỏi model: những gói nào hữu ích cho bài toán (câu hỏi gốc). Chép đúng mode 2 trong
+generate_package_names.py của Spracklen và cộng sự: temperature 0.01, top_k 20, top_p 0.9,
+tối đa 64 token, câu hỏi đã cắt khoảng trắng hai đầu.
+"""
+input = "prompt"
+system = "You are a coding assistant that recommends Python packages that would be helpful to solve given problems. Respond with only a list of Python packages, separated by commas and no additional text or formatting. Your response must begin with the name of a Python package."
+user = "What Python packages would be useful in solving the following coding problem: {prompt}"
+extract = ["llm_list"]
+
+[params]
+temperature = 0.01
+top_k = 20
+top_p = 0.9
+max_tokens = 64
