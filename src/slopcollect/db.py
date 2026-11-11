@@ -229,7 +229,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(str(p), timeout=60)
     conn.row_factory = sqlite3.Row
     # Chế độ journal mặc định (DELETE): chỉ một file .sqlite, dễ mang giữa các máy.
-    conn.execute("PRAGMA synchronous = NORMAL")
+    # synchronous = FULL: mất điện / tắt cứng máy giữa lúc ghi cũng không hỏng file
+    # (NORMAL ở chế độ DELETE còn một xác suất nhỏ hỏng file). Ghi ~15 giây một lần nên không chậm đáng kể.
+    conn.execute("PRAGMA synchronous = FULL")
     conn.executescript(SCHEMA)
     conn.executescript(VIEWS)
     cur = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'")
