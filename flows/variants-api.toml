@@ -1,0 +1,59 @@
+# Hỏi lại câu gốc cho các tên bịa của Llama 3.1 8B và DeepSeek V4.1 Flash (DeepInfra) để đo mức lặp lại
+# và các biến thể tên. Chọn 250 cặp (tên bịa, câu hỏi gốc) mỗi model, rồi hỏi mỗi câu tổng cộng 10 lần
+# (lần 0 đã có, thêm 9 lần) theo cả ba tác vụ của Spracklen. Sau đó chạy lại label-enrich và
+# stats với selection_id = "variants-v1".
+[flow]
+name = "variants-api"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "select_variants"
+selection_id = "variants-v1"
+models = ["llama31-8b-deepinfra", "deepseek-v41-flash-deepinfra"]
+n = 500
+
+[[steps]]
+name = "llama-code"
+stage = "generate"
+model = "llama31-8b-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:llama31-8b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "llama-pkgs-code"
+stage = "generate"
+model = "llama31-8b-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:llama31-8b-deepinfra"]
+
+[[steps]]
+name = "llama-pkgs-prompt"
+stage = "generate"
+model = "llama31-8b-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:llama31-8b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "ds-code"
+stage = "generate"
+model = "deepseek-v41-flash-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "ds-pkgs-code"
+stage = "generate"
+model = "deepseek-v41-flash-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+
+[[steps]]
+name = "ds-pkgs-prompt"
+stage = "generate"
+model = "deepseek-v41-flash-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10

@@ -67,8 +67,15 @@ def select_variants(
                 idx[m] += 1
 
     with conn:
-        conn.execute("DELETE FROM selections WHERE selection_id = ?", (selection_id,))
-        conn.execute("DELETE FROM prompt_tags WHERE tag LIKE ?", (f"sel:{selection_id}:%",))
+        # Chọn lại thì thay lựa chọn cũ; nếu chỉ định models thì chỉ thay phần của các model đó
+        # (GLM chạy sau, chọn riêng mà không xóa lựa chọn của model khác trong cùng selection_id).
+        if models:
+            for m in models:
+                conn.execute("DELETE FROM selections WHERE selection_id = ? AND model_key = ?", (selection_id, m))
+                conn.execute("DELETE FROM prompt_tags WHERE tag = ?", (f"sel:{selection_id}:{m}",))
+        else:
+            conn.execute("DELETE FROM selections WHERE selection_id = ?", (selection_id,))
+            conn.execute("DELETE FROM prompt_tags WHERE tag LIKE ?", (f"sel:{selection_id}:%",))
         for name, model, pid, lab in chosen:
             conn.execute(
                 "INSERT OR IGNORE INTO selections(selection_id, norm_name, model_key, prompt_id, label, run_id) VALUES (?,?,?,?,?,?)",
