@@ -24,6 +24,21 @@ def offline_metadata(monkeypatch):
     monkeypatch.setitem(metadata_stage.FETCHERS, "pypi_json", fake_pypi_json)
     monkeypatch.setitem(metadata_stage.FETCHERS, "pypistats", fake_pypistats)
     monkeypatch.setitem(metadata_stage.FETCHERS, "pypi_provenance", lambda n, r, t: (200, {"has_provenance": False}))
+    monkeypatch.setitem(metadata_stage.BULK_FETCHERS, "clickpy", fake_clickpy)
+    monkeypatch.setitem(metadata_stage.BULK_FETCHERS, "github", fake_github)
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+
+
+def fake_clickpy(names, cache, token):
+    return {n: (200, {"downloads_30d": 10 if n == "fastyaml-pro" else 1_000_000}, None) for n in names}
+
+
+def fake_github(names, cache, token):
+    # github chỉ bắt đầu sau khi pypi_json đã lưu xong cho mọi tên.
+    assert token == "test-token"
+    for n in names:
+        assert "pypi_json" in cache[n], n
+    return {n: (200, {"repo": f"example/{n}", "stargazers_count": 5, "created_at": "2015-01-01T00:00:00Z", "archived": False}, None) for n in names}
 
 
 FLOW = """
@@ -71,8 +86,7 @@ stage = "check"
 
 [[steps]]
 stage = "metadata"
-sources = ["pypi_json", "pypi_provenance", "pypistats"]
-rates = {pypistats = 1000.0}
+github_token_file = ""
 
 [[steps]]
 stage = "label"
@@ -124,6 +138,12 @@ def test_end_to_end(root, ctx):
             assert bool(r["registrable"]) == (r["reason"] is None)
     review = list(csv.DictReader(open(root / "data/review/needs_review.csv", encoding="utf-8")))
     assert any(r["norm_name"] == "fastyaml-pro" for r in review)
+
+    # Metadata: các nguồn mặc định chạy song song; lượt tải lấy từ clickpy, github chạy sau pypi_json.
+    feat = conn.execute("SELECT downloads_last_month, github_stars FROM package_features WHERE norm_name = 'requests'").fetchone()
+    assert tuple(feat) == (1_000_000, 5)
+    errs = conn.execute("SELECT COUNT(*) FROM metadata_raw WHERE error IS NOT NULL").fetchone()[0]
+    assert errs == 0
 
 
 def test_check_uses_pypi_rules(root, ctx):

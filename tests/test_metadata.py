@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from slopcollect.stages.metadata import compute_features, github_repo_from_urls
 
 
@@ -41,3 +43,32 @@ def test_no_ownership_field_is_unknown_and_no_provenance_unverified():
 def test_github_url_parsing():
     assert github_repo_from_urls(["https://github.com/sponsors/x", "git+https://github.com/Foo/Bar.git#egg=bar"]) == "foo/bar"
     assert github_repo_from_urls(["https://gitlab.com/a/b"]) is None
+
+
+def test_github_graphql_batch(monkeypatch):
+    from slopcollect.stages import metadata as m
+    from slopcollect.util import Response
+
+    sent = {}
+
+    def fake_http(url, **kw):
+        sent["query"] = kw["json_body"]["query"]
+        body = {
+            "data": {
+                "r0": {"nameWithOwner": "pallets/flask", "stargazerCount": 70000, "createdAt": "2010-04-06T11:11:59Z", "isArchived": False, "isFork": False},
+                "r1": None,
+                "rateLimit": {"remaining": 4999, "resetAt": "2026-11-12T05:00:00Z"},
+            },
+            "errors": [{"type": "NOT_FOUND", "path": ["r1"], "message": "Could not resolve"}],
+        }
+        return Response(200, {}, json.dumps(body).encode())
+
+    monkeypatch.setattr(m, "http_request", fake_http)
+    pj = lambda url: {"pypi_json": {"info": {"project_urls": {"Source": url}}}}  # noqa: E731
+    cache = {"flask": pj("https://github.com/pallets/flask"), "gone": pj("https://github.com/x/gone"), "nourl": pj("https://example.org"), "nopj": {}}
+    got = m._fetch_github_bulk(list(cache), cache, "tok")
+    assert got["flask"][0] == 200 and got["flask"][1]["stargazers_count"] == 70000
+    assert got["gone"] == (404, {"repo": "x/gone"}, None)
+    assert got["nourl"][1] == {"skipped": "no github url"} and got["nopj"][1] == {"skipped": "no pypi_json"}
+    assert 'repository(owner: "pallets", name: "flask")' in sent["query"]
+    assert m.compute_features({"github": got["flask"][1]})["github_stars"] == 70000

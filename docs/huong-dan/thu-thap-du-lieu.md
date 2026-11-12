@@ -77,6 +77,14 @@ uv run python -m slopcollect run flows/smoke.toml   # chạy thử cả luồng 
 
 Token GitHub (tùy chọn) dùng để lấy số sao GitHub. Bước `metadata` đọc token từ biến môi trường `GITHUB_TOKEN`, nếu không có thì đọc file `~/.config/github/token`. Không có cả hai thì bước này bỏ qua nguồn GitHub.
 
+Bước `metadata` lấy các nguồn song song (mỗi nguồn một máy chủ, giới hạn tốc độ riêng):
+- **thông tin gói**: API JSON của PyPI;
+- **chứng thực nguồn gốc**: Simple API của PyPI;
+- **lượt tải 30 ngày**: lấy hàng loạt, 1.000 tên một truy vấn, từ ClickPy. Đây là bản sao công khai bảng lượt tải PyPI trên BigQuery. Số liệu đã bỏ lượt tải của các công cụ sao chép toàn bộ PyPI (bandersnatch, devpi, Artifactory, Nexus), giống pypistats với `mirrors=false`;
+- **GitHub**: qua GraphQL, 100 kho một truy vấn.
+
+Với khoảng 14.000 tên, cả bước mất khoảng 30 phút, chủ yếu là phần lấy từ PyPI. Nguồn `pypistats` (khoảng 0,5 lượt/giây) và `github_rest` (từng kho một, dùng được khi không có token) vẫn còn trong code, nhưng chỉ chạy khi ghi rõ trong `sources`.
+
 ## Cấu hình Ollama trên máy kali
 
 Ollama mặc định chỉ nghe trên `localhost`. Cách an toàn là cho Ollama nghe trên địa chỉ Tailscale của máy kali, để chỉ các máy trong mạng Tailscale gọi được:

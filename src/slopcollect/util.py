@@ -82,13 +82,14 @@ def http_request(
     method: str = "GET",
     headers: dict[str, str] | None = None,
     json_body: Any = None,
+    body: bytes | None = None,
     timeout: float = 60.0,
 ) -> Response:
     """Gửi một request HTTP. Trả về Response với mọi mã trạng thái; chỉ ném NetworkError khi lỗi mạng."""
     hdrs = {"User-Agent": USER_AGENT}
     if headers:
         hdrs.update(headers)
-    data = None
+    data = body
     if json_body is not None:
         data = json.dumps(json_body, ensure_ascii=False).encode("utf-8")
         hdrs.setdefault("Content-Type", "application/json")
