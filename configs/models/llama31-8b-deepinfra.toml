@@ -4,7 +4,7 @@ base_url = "https://api.deepinfra.com/v1/openai"
 model = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
 api_key_env = "DEEPINFRA_API_KEY"
 api_key_file = "~/.config/deepinfra/api_key"
-concurrency = 32
+concurrency = 128
 timeout_s = 300
 
 [params]
