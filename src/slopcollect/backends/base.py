@@ -13,11 +13,23 @@ from slopcollect.util import NetworkError, Response
 
 
 class BackendError(Exception):
-    """Lỗi từ backend. transient=True: nên thử lại (quá tải, timeout, lỗi 5xx)."""
+    """Lỗi từ backend. transient=True: nên thử lại (quá tải, timeout, lỗi 5xx).
 
-    def __init__(self, message: str, *, transient: bool):
+    fatal=True: lỗi về tài khoản (hết tiền 402, sai khóa 401, không có quyền 403). Mọi câu sau đều sẽ
+    lỗi như vậy, nên bước generate dừng ngay thay vì ghi lỗi cho từng câu.
+    """
+
+    def __init__(self, message: str, *, transient: bool, fatal: bool = False):
         super().__init__(message)
         self.transient = transient
+        self.fatal = fatal
+
+
+class FatalBackendError(Exception):
+    """Dừng cả luồng: lỗi tài khoản/khóa API, chạy lại cũng không khỏi cho tới khi người dùng xử lý."""
+
+
+FATAL_STATUSES = {401, 402, 403}
 
 
 def is_transient(e: BaseException) -> bool:
@@ -82,4 +94,4 @@ def raise_for_response(resp: Response, what: str) -> None:
     if resp.ok:
         return
     detail = resp.body[:500].decode("utf-8", "replace")
-    raise BackendError(f"{what}: HTTP {resp.status}: {detail}", transient=resp.transient)
+    raise BackendError(f"{what}: HTTP {resp.status}: {detail}", transient=resp.transient, fatal=resp.status in FATAL_STATUSES)

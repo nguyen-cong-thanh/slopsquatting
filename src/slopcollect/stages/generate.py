@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from slopcollect import registry
-from slopcollect.backends.base import ChatResult, is_transient
+from slopcollect.backends.base import BackendError, ChatResult, FatalBackendError, is_transient
 from slopcollect.config import effective_params, identity_hash
 from slopcollect.registry import register
 from slopcollect.stages.prompts import select_prompts
@@ -128,6 +128,8 @@ def generate(
 
     backend = registry.get("backend", mcfg.backend)(mcfg)
     workers = concurrency or mcfg.concurrency
+    fatal: list[str] = []  # lỗi tài khoản (402/401/403): dừng cả bước, không ghi lỗi cho từng câu
+    fatal_ids: set[str] = set()
 
     def call(it: _Item) -> tuple[_Item, ChatResult | None, str | None, int, bool]:
         def once() -> ChatResult:
@@ -141,6 +143,12 @@ def generate(
                 on_retry=lambda i, e: log.warning("thử lại %s (lần %d): %s", it.gen_id[:10], i, e),
             )
             return it, res, None, attempts, False
+        except BackendError as e:
+            if e.fatal:
+                fatal.append(str(e))
+                fatal_ids.add(it.gen_id)
+            transient = is_transient(e)
+            return it, None, f"{type(e).__name__}: {e}", max_attempts if transient else 1, transient
         except Exception as e:  # noqa: BLE001 - mọi lỗi đều ghi lại để chạy lại sau
             transient = is_transient(e)
             return it, None, f"{type(e).__name__}: {e}", max_attempts if transient else 1, transient
@@ -228,6 +236,8 @@ def generate(
                 finished, pending = wait(pending, timeout=5, return_when=FIRST_COMPLETED)
                 for fut in finished:
                     it, res, err, attempts, transient = fut.result()
+                    if it.gen_id in fatal_ids:
+                        continue  # lỗi tài khoản: không ghi lỗi, câu này sẽ chạy khi chạy lại
                     if err and transient:
                         consecutive_transient += 1
                         in_outage = outage_since is not None or consecutive_transient >= pause_after_failures
@@ -265,6 +275,10 @@ def generate(
                     if time.monotonic() - last_commit >= commit_every_s:
                         conn.commit()
                         last_commit = time.monotonic()
+                if fatal and queue:
+                    # Lỗi tài khoản: không gửi câu mới; vòng lặp xử lý nốt các câu đang chạy (lưu câu thành công).
+                    log.error("Lỗi tài khoản/khóa API, ngừng gửi câu mới: %s", fatal[0][:300])
+                    queue.clear()
         except KeyboardInterrupt:
             interrupted = True
             log.warning("Dừng theo yêu cầu: lưu %d câu đã xong, hủy các câu đang chờ.", ok + failed)
@@ -279,4 +293,9 @@ def generate(
     summary.update({"ok": ok, "failed": failed, "elapsed_s": round(time.monotonic() - t_start, 1)})
     if interrupted:
         raise KeyboardInterrupt
+    if fatal:
+        raise FatalBackendError(
+            f"{model}/{task}: dừng vì lỗi tài khoản/khóa API (đã lưu {ok} câu thành công; các câu còn lại "
+            f"chạy tiếp khi chạy lại sau khi xử lý): {fatal[0][:300]}"
+        )
     return summary

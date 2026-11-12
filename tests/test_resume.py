@@ -71,6 +71,42 @@ def test_single_flaky_prompt_is_recorded_after_requeues(loaded, monkeypatch):
     assert "mất kết nối giả lập" in row["error"]
 
 
+def test_out_of_credit_stops_without_recording_errors(root, monkeypatch):
+    # Hết tiền (402) sau 4 câu: lưu 4 câu thành công, không ghi lỗi cho câu nào, --keep-going không chạy lại.
+    state = {"n": 0}
+    lock = threading.Lock()
+    orig = FakeBackend.chat
+
+    def chat(backend, messages, params, seed):
+        with lock:
+            state["n"] += 1
+            n = state["n"]
+        if n > 4:
+            raise BackendError("HTTP 402: You need positive balance", transient=False, fatal=True)
+        return orig(backend, messages, params, seed)
+
+    monkeypatch.setattr(FakeBackend, "chat", chat)
+    flow = root / "flow.toml"
+    flow.write_text(
+        '[flow]\nname = "t"\ndb = "data/f.sqlite"\n'
+        '[[steps]]\nstage = "load_prompts"\nsource = "jsonl"\npath = "fixtures/prompts.jsonl"\n'
+        '[[steps]]\nstage = "generate"\nmodel = "fake"\ntask = "spracklen_code_v1"\nconcurrency = 1\n',
+        encoding="utf-8",
+    )
+    assert main(["--root", str(root), "run", str(flow), "--keep-going", "--retry-wait", "0"]) == 3
+    import sqlite3
+
+    c = sqlite3.connect(root / "data/f.sqlite")
+    assert c.execute("SELECT COUNT(*) FROM generations WHERE error IS NULL").fetchone()[0] == 4
+    assert c.execute("SELECT COUNT(*) FROM generations WHERE error IS NOT NULL").fetchone()[0] == 0
+    calls = state["n"]
+    # Sau khi nạp tiền: chạy lại hoàn tất phần còn lại.
+    monkeypatch.setattr(FakeBackend, "chat", orig)
+    assert main(["--root", str(root), "run", str(flow)]) == 0
+    assert c.execute("SELECT COUNT(*) FROM generations WHERE error IS NULL").fetchone()[0] == len(PROMPTS)
+    assert calls <= 6  # dừng ngay, không bắn thêm hàng loạt request
+
+
 def test_keep_going_retries_errors_until_done(root, monkeypatch):
     # Lượt 1: một câu lỗi hẳn (không tạm thời). Lượt 2: hết lỗi -> --keep-going chạy lại và xong.
     state = {"pass": 0}

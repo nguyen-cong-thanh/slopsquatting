@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from slopcollect import registry
+from slopcollect.backends.base import FatalBackendError
 from slopcollect.config import ConfigError, FlowConfig, load_flow, parse_cli_value
 from slopcollect.db import connect, connect_readonly
 from slopcollect.pipeline import Context, run_flow, run_stage
@@ -219,6 +220,10 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         logging.getLogger("slopcollect").warning("Đã dừng. Chạy lại cùng lệnh để tiếp tục từ chỗ dừng.")
         return 130
+    except FatalBackendError as e:
+        # Không tự chạy lại (kể cả với --keep-going): cần người dùng nạp tiền / sửa khóa API.
+        logging.getLogger("slopcollect").error("%s", e)
+        return 3
     except (ConfigError, KeyError, TypeError, ValueError, RuntimeError, FileNotFoundError) as e:
         logging.getLogger("slopcollect").error("%s: %s", type(e).__name__, e)
         if args.verbose:
