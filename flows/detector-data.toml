@@ -1,0 +1,17 @@
+# Dữ liệu cho bộ phát hiện tầng 2, ngoài các tên LLM gợi ý: tập gói mới đăng (hồ sơ metadata khi mô phỏng
+# gói của kẻ tấn công, và tập đo báo nhầm trên gói thật mới) và tập gói ngẫu nhiên trên PyPI (đo báo nhầm).
+# Chạy sau label-enrich (cần snapshot PyPI).
+[flow]
+name = "detector-data"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "pypi_samples"
+new_from = "2026-08-01"
+new_to = "2026-11-01"
+n_new = 3000
+n_random = 10000
+
+[[steps]]
+stage = "metadata"
+samples = ["pypi_new", "pypi_random"]

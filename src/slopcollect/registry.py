@@ -26,6 +26,7 @@ _BUILTIN_MODULES = (
     "slopcollect.stages.pypi",
     "slopcollect.stages.metadata",
     "slopcollect.stages.lists",
+    "slopcollect.stages.samples",
     "slopcollect.stages.label",
     "slopcollect.stages.select",
     "slopcollect.stages.merge",

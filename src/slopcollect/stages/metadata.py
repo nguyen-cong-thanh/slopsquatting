@@ -388,10 +388,12 @@ def metadata(
     github_token_env: str = "GITHUB_TOKEN",
     github_token_file: str | None = "~/.config/github/token",
     github_anonymous: bool = False,
+    samples: list[str] | None = None,
 ) -> dict[str, Any]:
     """Thu metadata cho các tên đang tồn tại trên PyPI (theo snapshot), rồi tính lại package_features.
 
     names_from: "mentions" (tên LLM gợi ý), "all" (thêm cả tên trong danh sách tham chiếu).
+    samples: thêm các tập tên mẫu trong bảng name_samples (ví dụ ["pypi_new", "pypi_random"]).
     """
     conn = ctx.conn
     srcs = list(sources or DEFAULT_SOURCES)
@@ -404,7 +406,18 @@ def metadata(
     q = "SELECT ps.norm_name FROM package_status ps WHERE ps.snapshot_id = ? AND ps.exists_on_pypi = 1"
     if names_from == "mentions":
         q += " AND EXISTS (SELECT 1 FROM mentions m WHERE m.norm_name = ps.norm_name)"
-    names = sorted(r[0] for r in conn.execute(q, (sid,)))
+    names_set = {r[0] for r in conn.execute(q, (sid,))}
+    if samples:
+        ph = ",".join("?" * len(samples))
+        names_set |= {
+            r[0]
+            for r in conn.execute(
+                f"SELECT s.norm_name FROM name_samples s JOIN pypi_index i ON i.norm_name = s.norm_name AND i.snapshot_id = ? "
+                f"WHERE s.sample_id IN ({ph})",
+                (sid, *samples),
+            )
+        }
+    names = sorted(names_set)
     if limit:
         names = names[:limit]
 

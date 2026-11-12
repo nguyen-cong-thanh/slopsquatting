@@ -12,12 +12,24 @@ dependencies = []
 pypi = ["stdlib-list==0.12.0"]
 # Xuất Parquet.
 export = ["pyarrow>=21"]
+detect = [
+    "numpy>=2.4.6",
+    "pandas>=3.1.0",
+    "scikit-learn>=1.9.1",
+]
 
 [project.scripts]
 slopcollect = "slopcollect.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "stdlib-list==0.12.0", "pyarrow>=21"]
+dev = [
+    "pytest>=8",
+    "stdlib-list==0.12.0",
+    "pyarrow>=21",
+    "scikit-learn>=1.9.1",
+    "pandas>=3.1.0",
+    "numpy>=2.4.6",
+]
 
 [build-system]
 requires = ["uv_build>=0.11,<0.12"]

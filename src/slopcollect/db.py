@@ -187,6 +187,16 @@ CREATE TABLE IF NOT EXISTS selections (
   run_id TEXT,
   PRIMARY KEY (selection_id, norm_name, model_key, prompt_id)
 );
+
+-- Tập tên mẫu lấy từ PyPI (không do LLM gợi ý): gói mới đăng, gói ngẫu nhiên. Dùng để mô phỏng
+-- metadata gói mới và đo báo nhầm của bộ phát hiện.
+CREATE TABLE IF NOT EXISTS name_samples (
+  sample_id TEXT NOT NULL,
+  norm_name TEXT NOT NULL,
+  extra_json TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (sample_id, norm_name)
+);
 """
 
 VIEWS = """
@@ -219,6 +229,7 @@ MERGE_TABLES = (
     "known_lists",
     "labels",
     "selections",
+    "name_samples",
 )
 
 
