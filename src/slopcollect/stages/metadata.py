@@ -6,6 +6,8 @@ Nguồn (mỗi nguồn lưu bản thô trong metadata_raw, chạy lại thì b�
                      -> kho mã nguồn mà PyPI đã xác minh qua Trusted Publishing
   - clickpy:         lượt tải 30 ngày, lấy hàng loạt (1000 tên một truy vấn) từ bản sao công khai
                      bảng lượt tải PyPI trên ClickHouse. Mặc định dùng nguồn này.
+  - clickpy_history: lần tải file lên sớm nhất (kể cả bản đã xóa khỏi PyPI), 1000 tên một truy vấn; dùng để
+                     sửa ngày phát hành đầu của gói đã xóa bản cũ.
   - pypistats:       https://pypistats.org/api/packages/<tên>/recent  (lượt tải 30 ngày; chậm, ~0,5 lượt/giây,
                      chỉ dùng khi ghi rõ trong sources)
 Các nguồn chạy song song; github bắt đầu sau khi pypi_json xong.
@@ -158,6 +160,28 @@ def _fetch_clickpy_bulk(names: list[str]) -> dict[str, tuple[int | None, Any, st
     return out
 
 
+def _fetch_clickpy_history_bulk(names: list[str]) -> dict[str, tuple[int | None, Any, str | None]]:
+    """Lần tải file lên sớm nhất của mỗi gói, kể cả các bản đã bị xóa khỏi PyPI (bảng pypi.projects của ClickPy).
+
+    PyPI JSON chỉ còn các bản chưa bị xóa, nên gói xóa bản cũ trông như gói mới (PySimpleGUI có từ 2018 nhưng
+    PyPI JSON cho bản sớm nhất 03/2025). pypi.projects thiếu nhiều bản mới (numpy chỉ tới 2018), nên chỉ dùng
+    làm ngày sớm nhất; tên không có trong bảng thì first_upload = None.
+    """
+    safe = [n for n in names if _SAFE_NAME.match(n)]
+    out: dict[str, tuple[int | None, Any, str | None]] = {n: (None, None, "tên có ký tự lạ, bỏ qua") for n in names if n not in set(safe)}
+    if not safe:
+        return out
+    rows = _clickpy_query(
+        "SELECT n, toString(min(upload_time)) FROM (SELECT lower(replaceRegexpAll(name, '[-_.]+', '-')) AS n, upload_time "
+        "FROM pypi.projects WHERE n IN (" + ",".join(f"'{n}'" for n in safe) + ")) GROUP BY n"
+    )
+    got = {n: t for n, t in rows}
+    for n in safe:
+        t = got.get(n)
+        out[n] = (200, {"first_upload": (t.replace(" ", "T") + "Z") if t else None, "source": "clickpy pypi.projects"}, None)
+    return out
+
+
 # Công cụ sao chép toàn bộ PyPI: tải mọi gói, kể cả gói không ai dùng. Bỏ đi như pypistats (mirrors=false)
 # để lượt tải phản ánh người dùng thật; thêm Nexus (cũng là kho trung gian).
 MIRROR_INSTALLERS = ("bandersnatch", "z3c.pypimirror", "Artifactory", "devpi", "Nexus")
@@ -266,12 +290,13 @@ FETCHERS: dict[str, Callable[[str, dict[str, Any], str | None], tuple[int, Any]]
 # Nguồn lấy hàng loạt: nhận (danh sách tên, dữ liệu thô đã lưu, token), trả {tên: (http_status, dữ liệu, lỗi)}.
 BULK_FETCHERS: dict[str, Callable[[list[str], dict[str, Any], str | None], dict[str, tuple[int | None, Any, str | None]]]] = {
     "clickpy": lambda names, cache, token: _fetch_clickpy_bulk(names),
+    "clickpy_history": lambda names, cache, token: _fetch_clickpy_history_bulk(names),
     "github": _fetch_github_bulk,
 }
-BULK_BATCH = {"clickpy": 1000, "github": 100}
+BULK_BATCH = {"clickpy": 1000, "clickpy_history": 1000, "github": 100}
 # Mặc định: lượt tải từ ClickPy và GitHub qua GraphQL, đều lấy hàng loạt (vài phút cho hàng chục nghìn tên)
 # thay vì pypistats (~0,5 lượt/giây) và GitHub REST (~1 lượt/giây).
-DEFAULT_SOURCES = ["pypi_json", "pypi_provenance", "clickpy", "github"]
+DEFAULT_SOURCES = ["pypi_json", "pypi_provenance", "clickpy", "clickpy_history", "github"]
 DEPENDS = {"github": "pypi_json", "github_rest": "pypi_json"}  # github đọc link kho mã từ pypi_json đã lưu
 NEEDS_RAWS = {"github", "github_rest"}
 
@@ -317,6 +342,10 @@ def compute_features(raws: dict[str, Any]) -> dict[str, Any]:
             feat["provenance_repo"] = None
         # Giống cách PyPI đánh dấu "verified": một link của project trỏ đúng kho đã phát hành qua Trusted Publishing.
         feat["source_repo_verified"] = int(bool(feat.get("provenance_repo")) and feat["provenance_repo"] in repos)
+    # Ngày phát hành đầu: lấy ngày sớm hơn giữa PyPI JSON và lịch sử tải lên của ClickPy (có cả bản đã xóa).
+    hist = (raws.get("clickpy_history") or {}).get("first_upload")
+    if hist and (not feat.get("first_release_at") or parse_time(hist) < parse_time(feat["first_release_at"])):
+        feat["first_release_at"] = hist
     cp = raws.get("clickpy")
     ps = raws.get("pypistats")
     if cp and cp.get("downloads_30d") is not None:

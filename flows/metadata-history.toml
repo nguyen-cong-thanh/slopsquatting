@@ -1,0 +1,21 @@
+# Sửa ngày phát hành đầu cho gói đã xóa bản cũ: lấy lần tải lên sớm nhất (kể cả bản đã xóa) từ ClickPy cho
+# mọi tên đã có metadata (tên LLM gợi ý và các tập mẫu), tính lại đặc trưng, gắn nhãn lại.
+[flow]
+name = "metadata-history"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "metadata"
+sources = ["clickpy_history"]
+samples = ["pypi_new", "pypi_random"]
+
+[[steps]]
+stage = "label"
+
+[[steps]]
+stage = "export"
+
+[[steps]]
+stage = "stats"
+selection_id = "variants-v1"
+reask_models = { "glm53-internal" = "glm53-deepinfra" }

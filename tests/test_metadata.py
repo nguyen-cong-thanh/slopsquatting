@@ -72,3 +72,14 @@ def test_github_graphql_batch(monkeypatch):
     assert got["nourl"][1] == {"skipped": "no github url"} and got["nopj"][1] == {"skipped": "no pypi_json"}
     assert 'repository(owner: "pallets", name: "flask")' in sent["query"]
     assert m.compute_features({"github": got["flask"][1]})["github_stars"] == 70000
+
+
+def test_first_release_uses_earliest_upload_including_deleted():
+    from slopcollect.stages.metadata import compute_features
+
+    pj = {"info": {"name": "PySimpleGUI"}, "releases": {"5.0": [{"upload_time_iso_8601": "2025-03-12T00:00:00Z"}]}}
+    f = compute_features({"pypi_json": pj, "clickpy_history": {"first_upload": "2018-07-31T15:03:12.315Z"}})
+    assert f["first_release_at"].startswith("2018-07-31")
+    # ClickPy không có tên (None) hoặc muộn hơn: giữ ngày của PyPI.
+    assert compute_features({"pypi_json": pj, "clickpy_history": {"first_upload": None}})["first_release_at"].startswith("2025-03-12")
+    assert compute_features({"pypi_json": pj, "clickpy_history": {"first_upload": "2026-01-01T00:00:00Z"}})["first_release_at"].startswith("2025-03-12")

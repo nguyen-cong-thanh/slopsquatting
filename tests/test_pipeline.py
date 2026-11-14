@@ -26,11 +26,17 @@ def offline_metadata(monkeypatch):
     monkeypatch.setitem(metadata_stage.FETCHERS, "pypi_provenance", lambda n, r, t: (200, {"has_provenance": False}))
     monkeypatch.setitem(metadata_stage.BULK_FETCHERS, "clickpy", fake_clickpy)
     monkeypatch.setitem(metadata_stage.BULK_FETCHERS, "github", fake_github)
+    monkeypatch.setitem(metadata_stage.BULK_FETCHERS, "clickpy_history", fake_clickpy_history)
     monkeypatch.setenv("GITHUB_TOKEN", "test-token")
 
 
 def fake_clickpy(names, cache, token):
     return {n: (200, {"downloads_30d": 10 if n == "fastyaml-pro" else 1_000_000}, None) for n in names}
+
+
+def fake_clickpy_history(names, cache, token):
+    # requests có bản cũ đã bị xóa khỏi PyPI: lần tải lên đầu sớm hơn bản sớm nhất còn trên PyPI.
+    return {n: (200, {"first_upload": "2011-02-14T08:49:42.641Z" if n == "requests" else None}, None) for n in names}
 
 
 def fake_github(names, cache, token):
