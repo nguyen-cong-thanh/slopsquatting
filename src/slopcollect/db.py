@@ -306,6 +306,8 @@ def merge_from(conn: sqlite3.Connection, other: Path | str) -> dict[str, int]:
             added["generations"] = conn.total_changes - before
             for t in MERGE_TABLES:
                 cols = [c for c in table_columns(conn, t) if c in set(table_columns(conn, t, "src"))]
+                if not cols:  # CSDL nguồn tạo từ bản code cũ, chưa có bảng này
+                    continue
                 col_list = ", ".join(cols)
                 before = conn.total_changes
                 conn.execute(f"INSERT OR IGNORE INTO main.{t} ({col_list}) SELECT {col_list} FROM src.{t}")

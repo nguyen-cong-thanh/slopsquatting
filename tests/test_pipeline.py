@@ -274,6 +274,20 @@ def test_merge_two_machines(root, ctx, monkeypatch):
     assert sum(again.values()) == 0
 
 
+def test_merge_from_older_db_missing_table(root, ctx):
+    # CSDL từ gói GLM cũ chưa có bảng mới (name_samples): vẫn gộp được, bỏ qua bảng thiếu.
+    run_stage(ctx, "load_prompts", {"source": "jsonl", "path": "fixtures/prompts.jsonl"})
+    other_db = root / "data" / "old.sqlite"
+    other = Context(conn=connect(other_db), root=root, db_path=other_db)
+    run_stage(other, "load_prompts", {"source": "jsonl", "path": "fixtures/prompts.jsonl"})
+    run_stage(other, "generate", {"model": "fake", "task": "spracklen_code_v1", "limit": 3})
+    other.conn.execute("DROP TABLE name_samples")
+    other.conn.commit()
+    other.conn.close()
+    added = merge_from(ctx.conn, other_db)
+    assert added["generations"] == 3 and "name_samples" not in added
+
+
 def test_variants_select_stats_export(root, ctx):
     run_test_flow(root, ctx)
     sel = run_stage(ctx, "select_variants", {"selection_id": "v1", "n": 3})
