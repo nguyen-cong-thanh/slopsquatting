@@ -35,3 +35,15 @@ def test_threshold_keeps_fpr():
     neg = np.linspace(0, 1, 1001)
     thr = threshold_at_fpr(neg, 0.01)
     assert (neg > thr).mean() <= 0.01
+
+
+def test_cut_feature_sign_and_wait_invariance():
+    from slopcollect.detect.tier2_cutoff import _cut_feature
+
+    now, cut = pd.Timestamp("2026-11-12"), pd.Timestamp("2023-12-31")
+    age = pd.Series([10.0, 2000.0])  # đăng ký 10 ngày trước (sau mốc) / 2000 ngày trước (trước mốc)
+    f = _cut_feature(age, now, cut)
+    assert f.iloc[0] > 0 and f.iloc[1] < 0
+    # Chờ thêm w ngày: tuổi và "now" cùng tăng w, đặc trưng không đổi.
+    w = 365
+    assert (_cut_feature(age + w, now + pd.Timedelta(days=w), cut) == f).all()

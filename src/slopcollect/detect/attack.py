@@ -56,16 +56,20 @@ def _apply_free(base: pd.DataFrame, wait: int, desc_len_log: float, choice: dict
     return X
 
 
-def fake_metadata(model, base: pd.DataFrame, name_feats: pd.DataFrame, costs: Costs, desc_len_log: float) -> dict:
+def fake_metadata(model, base: pd.DataFrame, name_feats: pd.DataFrame, costs: Costs, desc_len_log: float,
+                  extra: pd.DataFrame | None = None, waits: list[int] | None = None) -> dict:
     """Điểm thấp nhất kẻ tấn công đạt được cho mỗi tên, theo (thời gian chờ, ngân sách).
 
     Kẻ tấn công được hỏi bộ phát hiện bao nhiêu lần tùy ý (giả định mạnh nhất cho kẻ tấn công): với mỗi tên,
     chọn tổ hợp việc miễn phí tốt nhất, rồi chia ngân sách giữa sao GitHub và lượt tải theo 5 tỷ lệ.
+    extra: cột đặc trưng kẻ tấn công không đổi được (ví dụ ngày đăng ký so với mốc dữ liệu của model), cùng index.
     """
     out: dict[tuple[int, float], np.ndarray] = {}
     keys = list(FREE_CHOICES)
     combos = [dict(zip(keys, v)) for v in itertools.product(*FREE_CHOICES.values())]
-    for wait in costs.waits_days:
+    if extra is not None:
+        name_feats = name_feats.join(extra)
+    for wait in (waits if waits is not None else costs.waits_days):
         best_free = None
         best_score = None
         for ch in combos:

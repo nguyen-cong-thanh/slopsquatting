@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from slopcollect.detect import attack as atk
+from slopcollect.detect import tier2_cutoff
 from slopcollect.detect.data import META_COLS, MODELS, SHORT, Dataset, _bucket, describe, load
 from slopcollect.detect.models import NameFeaturizer, auc, name_only_models, rate, threshold_at_fpr, tier2_models
 
@@ -223,6 +224,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default="data/slop.sqlite")
     ap.add_argument("--out", default="data/exports/detector")
+    ap.add_argument("--cutoffs", default="configs/cutoffs.toml", help="mốc dữ liệu của các model (bỏ qua phần mốc nếu không có file)")
     ap.add_argument("--reuse", action="store_true", help="dùng lại bảng dữ liệu đã dựng (dataset.pkl) thay vì đọc lại CSDL")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
@@ -248,8 +250,12 @@ def main() -> None:
     attack_res = run_attack(ds, nf, t2, names_res, atk.Costs())
     clean = lambda d: {k: (clean(v) if isinstance(v, dict) else v) for k, v in d.items() if not str(k).startswith("_")}  # noqa: E731
     res = {"data": describe(ds), "shared_names": shared, "name_only": clean(names_res), "tier2": clean(t2), "attack": attack_res}
+    if Path(args.cutoffs).exists():
+        res["tier2_cutoff"] = tier2_cutoff.run(ds, nf, atk.Costs(), tier2_cutoff.load_cutoffs(args.cutoffs))
+        log.info("tầng 2 với mốc dữ liệu xong (%.0f giây)", time.time() - t0)
     (out / "results.json").write_text(json.dumps(res, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-    (out / "results.md").write_text(_md(res), encoding="utf-8")
+    md = _md(res) + (tier2_cutoff.to_md(res["tier2_cutoff"]) if "tier2_cutoff" in res else "")
+    (out / "results.md").write_text(md, encoding="utf-8")
     log.info("xong (%.0f giây): %s", time.time() - t0, out / "results.md")
 
 
