@@ -225,6 +225,8 @@ def main() -> None:
     ap.add_argument("--db", default="data/slop.sqlite")
     ap.add_argument("--out", default="data/exports/detector")
     ap.add_argument("--cutoffs", default="configs/cutoffs.toml", help="mốc dữ liệu của các model (bỏ qua phần mốc nếu không có file)")
+    ap.add_argument("--only-cutoff", action="store_true", help="chỉ chạy phần tầng 2 với mốc, ghi results_cutoff.md/json")
+    ap.add_argument("--only-adversarial", action="store_true", help="bỏ phần tầng 2 với mốc không có mẫu tấn công (đã chạy)")
     ap.add_argument("--reuse", action="store_true", help="dùng lại bảng dữ liệu đã dựng (dataset.pkl) thay vì đọc lại CSDL")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
@@ -242,6 +244,14 @@ def main() -> None:
     pypi = {r[0] for r in conn.execute("SELECT norm_name FROM pypi_index WHERE snapshot_id = ?", (ds.snapshot_id,))}
     conn.close()
     nf = NameFeaturizer(pypi)
+    if args.only_cutoff:
+        # Chỉ chạy phần tầng 2 với mốc (thường và có mẫu tấn công), ghi riêng results_cutoff.*
+        cuts = tier2_cutoff.load_cutoffs(args.cutoffs)
+        rc = {"normal": tier2_cutoff.run(ds, nf, atk.Costs(), cuts), "adversarial": tier2_cutoff.run(ds, nf, atk.Costs(), cuts, adversarial=True)}
+        (out / "results_cutoff.json").write_text(json.dumps(rc, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        (out / "results_cutoff.md").write_text(tier2_cutoff.to_md(rc["normal"]) + tier2_cutoff.to_md(rc["adversarial"]), encoding="utf-8")
+        log.info("xong (%.0f giây): %s", time.time() - t0, out / "results_cutoff.md")
+        return
     shared = shared_names(ds, nf)
     names_res = name_only(ds, nf)
     log.info("chỉ dùng tên xong (%.0f giây)", time.time() - t0)
@@ -251,10 +261,14 @@ def main() -> None:
     clean = lambda d: {k: (clean(v) if isinstance(v, dict) else v) for k, v in d.items() if not str(k).startswith("_")}  # noqa: E731
     res = {"data": describe(ds), "shared_names": shared, "name_only": clean(names_res), "tier2": clean(t2), "attack": attack_res}
     if Path(args.cutoffs).exists():
-        res["tier2_cutoff"] = tier2_cutoff.run(ds, nf, atk.Costs(), tier2_cutoff.load_cutoffs(args.cutoffs))
-        log.info("tầng 2 với mốc dữ liệu xong (%.0f giây)", time.time() - t0)
+        cuts = tier2_cutoff.load_cutoffs(args.cutoffs)
+        if not args.only_adversarial:
+            res["tier2_cutoff"] = tier2_cutoff.run(ds, nf, atk.Costs(), cuts)
+            log.info("tầng 2 với mốc dữ liệu xong (%.0f giây)", time.time() - t0)
+        res["tier2_cutoff_adv"] = tier2_cutoff.run(ds, nf, atk.Costs(), cuts, adversarial=True)
+        log.info("tầng 2 với mốc, huấn luyện có mẫu tấn công xong (%.0f giây)", time.time() - t0)
     (out / "results.json").write_text(json.dumps(res, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-    md = _md(res) + (tier2_cutoff.to_md(res["tier2_cutoff"]) if "tier2_cutoff" in res else "")
+    md = _md(res) + "".join(tier2_cutoff.to_md(res[k]) for k in ("tier2_cutoff", "tier2_cutoff_adv") if k in res)
     (out / "results.md").write_text(md, encoding="utf-8")
     log.info("xong (%.0f giây): %s", time.time() - t0, out / "results.md")
 

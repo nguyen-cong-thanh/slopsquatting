@@ -70,7 +70,62 @@ def _assign(names: list[str], profiles: pd.DataFrame, seed: int) -> pd.DataFrame
     return out
 
 
-def run(ds: Dataset, nf: NameFeaturizer, costs: atk.Costs, cutoffs: dict[str, pd.Timestamp], seed: int = 7) -> dict:
+AUG_WAITS = [0, 30, 90, 365]
+AUG_BUDGETS = [0, 10, 100, 1000]
+
+
+def augment(pos: pd.DataFrame, costs: atk.Costs, desc_len_log: float, k: int, seed: int) -> pd.DataFrame:
+    """Huấn luyện có mẫu tấn công: k bản biến đổi ngẫu nhiên cho mỗi gói tấn công mô phỏng (chờ, làm giả miễn phí,
+    mua sao/lượt tải). Ngày đăng ký không đổi nên đặc trưng mốc giữ nguyên."""
+    import itertools
+
+    rng = np.random.default_rng(seed)
+    keys = list(atk.FREE_CHOICES)
+    combos = [dict(zip(keys, v)) for v in itertools.product(*atk.FREE_CHOICES.values())]
+    out = []
+    for _ in range(k):
+        w = rng.choice(AUG_WAITS, size=len(pos))
+        c = rng.integers(0, len(combos), size=len(pos))
+        b = rng.choice(AUG_BUDGETS, size=len(pos)).astype(float)
+        f = rng.choice([0.0, 0.25, 0.5, 0.75, 1.0], size=len(pos))
+        P = pos.reset_index(drop=False)
+        parts = []
+        for (wi, ci), idx in P.groupby([w, c]).groups.items():
+            g = P.loc[idx].copy()
+            g[META_COLS] = atk._apply_free(g[META_COLS], int(wi), desc_len_log, combos[ci])[META_COLS].values
+            parts.append(g)
+        A = pd.concat(parts).loc[P.index]
+        A["log_stars"] = np.log1p(np.expm1(A["log_stars"]) + f * b / costs.usd_per_star)
+        A["log_downloads"] = np.log1p(np.expm1(A["log_downloads"]) + (1 - f) * b / costs.usd_per_download)
+        out.append(A.set_index(A.columns[0]))
+    return pd.concat(out)
+
+
+MIMIC_K = 20  # số hồ sơ gói thật kẻ tấn công thử cho mỗi tên (chọn hồ sơ cho điểm thấp nhất, trong ngân sách)
+
+
+def mimic_scores(mdl, nfe: pd.DataFrame, base: pd.DataFrame, extra: pd.DataFrame, real: pd.DataFrame, costs: atk.Costs,
+                 wait: int, budget: float, rng: np.random.Generator, age_override: float | None = None) -> np.ndarray:
+    """Kẻ tấn công bắt chước gói thật (ngoài cách làm giả dùng khi huấn luyện): chép mọi metadata làm giả được từ một
+    gói thật LLM gợi ý; tuổi = tuổi lúc đăng ký + thời gian chờ (hoặc age_override khi đăng ký trước mốc); kho GitHub
+    không thể cũ hơn gói; sao và lượt tải (1 tháng) phải mua theo giá trong costs, vượt ngân sách thì không dùng được hồ sơ đó."""
+    best = np.full(len(nfe), np.inf)
+    age = (base["age_days"].values + wait) if age_override is None else np.full(len(nfe), age_override)
+    for _ in range(MIMIC_K):
+        P = real.iloc[rng.integers(0, len(real), size=len(nfe))][META_COLS].reset_index(drop=True)
+        cost = np.expm1(P["log_stars"].values) * costs.usd_per_star + np.expm1(P["log_downloads"].values) * costs.usd_per_download
+        X = P.copy()
+        X.index = nfe.index
+        X["age_days"] = age
+        X["github_age_days"] = np.where(P["has_github"].values == 1, np.minimum(P["github_age_days"].values, age), -1.0)
+        X["days_since_last_release"] = np.minimum(P["days_since_last_release"].values, age)
+        s = mdl.score(nfe.join(extra).join(X[META_COLS]))
+        best = np.where(cost <= budget, np.minimum(best, s), best)
+    return best
+
+
+def run(ds: Dataset, nf: NameFeaturizer, costs: atk.Costs, cutoffs: dict[str, pd.Timestamp], seed: int = 7,
+        adversarial: bool = False, k: int = 3) -> dict:
     now = pd.Timestamp(ds.now)
     now = now.tz_convert(None) if now.tzinfo else now
     n = ds.names
@@ -94,8 +149,13 @@ def run(ds: Dataset, nf: NameFeaturizer, costs: atk.Costs, cutoffs: dict[str, pd
         return pd.concat(parts)
 
     tr, te = rows("train", prof_tr, seed), rows("test", prof_te, seed + 1)
+    desc_len_log = float(np.median(n[(n.label == "real") & n.age_days.notna()]["log_description_len"]))
+    if adversarial:
+        aug = augment(tr[tr.y == 1], costs, desc_len_log, k, seed + 2)
+        tr = pd.concat([tr, aug])
     fpr_sets = {"new_pkgs": ds.new_pkgs[ds.new_pkgs.half == "eval"], "random_pypi": ds.random_pkgs}
     res: dict = {
+        "adversarial": adversarial,
         "rows": {"train": {"real": int((tr.y == 0).sum()), "simulated": int((tr.y == 1).sum())},
                  "test": {"real": int((te.y == 0).sum()), "simulated": int((te.y == 1).sum())}},
         "cutoffs": {SHORT[m]: str(cutoffs[m].date()) for m in use},
@@ -121,7 +181,6 @@ def run(ds: Dataset, nf: NameFeaturizer, costs: atk.Costs, cutoffs: dict[str, pd
     v = ds.variants
     status = n["registrable"].fillna(0).astype(bool)
     registrable = pd.Series({x: bool(status.get(x, False)) for x in v["variant"].unique()})
-    desc_len_log = float(np.median(n[(n.label == "real") & n.age_days.notna()]["log_description_len"]))
     attack: dict = {"pre_days": PRE_DAYS, "persistence": {SHORT[m]: p for m, p in PERSISTENCE.items()}, "by_model": {}}
     for name, (mdl, thr) in fitted.items():
         t0 = time.time()
@@ -146,6 +205,18 @@ def run(ds: Dataset, nf: NameFeaturizer, costs: atk.Costs, cutoffs: dict[str, pd
             pre["age_days"] = float((now - cutoffs[m]).days + PRE_DAYS)
             extra_pre = pd.DataFrame({CUT_COL: float(-PRE_DAYS)}, index=cand)
             best_pre = atk.fake_metadata(mdl, pre, nfe, costs, desc_len_log, extra=extra_pre, waits=[0])
+            # (c) bắt chước gói thật (ngoài cách làm giả lúc huấn luyện), đăng ký mới rồi chờ / đăng ký trước mốc.
+            real_m = te[(te.y == 0) & (te.model == m)]
+            rng = np.random.default_rng(123)
+            for wait in (0, 365):
+                for budget in (0, 1000):
+                    sc = mimic_scores(mdl, nfe, base, extra, real_m, costs, wait, budget, rng)
+                    curves.setdefault(f"bắt chước gói thật, đăng ký mới, chờ {wait} ngày, {budget:g} USD", {}).update(
+                        atk.evasion(vm, registrable, pd.Series(sc, index=cand) <= thr))
+            for budget in (0, 1000):
+                sc = mimic_scores(mdl, nfe, base, extra_pre, real_m, costs, 0, budget, rng, age_override=float((now - cutoffs[m]).days + PRE_DAYS))
+                ev = atk.evasion(vm, registrable, pd.Series(sc, index=cand) <= thr)
+                curves.setdefault(f"bắt chước gói thật, đăng ký trước mốc {PRE_DAYS} ngày, {budget:g} USD (nếu tên còn được gợi ý)", {}).update(ev)
             for budget in (0, 1000):
                 ev = atk.evasion(vm, registrable, pd.Series(best_pre[(0, budget)], index=cand) <= thr)
                 key = f"đăng ký trước mốc {PRE_DAYS} ngày, {budget:g} USD (nếu tên còn được gợi ý)"
@@ -163,7 +234,8 @@ def run(ds: Dataset, nf: NameFeaturizer, costs: atk.Costs, cutoffs: dict[str, pd
 
 def to_md(res: dict) -> str:
     short = list(res["cutoffs"])
-    L = ["\n## Tầng 2 với đặc trưng mốc dữ liệu (ngày đăng ký so với mốc của model đã gợi ý)\n",
+    title = "Tầng 2 với đặc trưng mốc dữ liệu" + (", huấn luyện có mẫu tấn công" if res.get("adversarial") else "")
+    L = [f"\n## {title} (ngày đăng ký so với mốc của model đã gợi ý)\n",
          f"Mốc: {res['cutoffs']}. Mỗi dòng là một cặp (gói, model gợi ý). Train {res['rows']['train']}, test {res['rows']['test']}.",
          f"Tỷ lệ gói thật (test) ra đời sau mốc của model đã gợi ý nó: {res['real_after_cutoff_share']}.\n",
          "| Mô hình | AUC | Phát hiện @1% báo nhầm | Báo nhầm gói mới | Báo nhầm gói ngẫu nhiên | Phát hiện theo model |",

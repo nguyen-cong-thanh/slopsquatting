@@ -47,3 +47,21 @@ def test_cut_feature_sign_and_wait_invariance():
     # Chờ thêm w ngày: tuổi và "now" cùng tăng w, đặc trưng không đổi.
     w = 365
     assert (_cut_feature(age + w, now + pd.Timedelta(days=w), cut) == f).all()
+
+
+def test_augment_keeps_cutoff_feature_and_ages():
+    import numpy as np
+
+    from slopcollect.detect import attack as atk
+    from slopcollect.detect.data import META_COLS
+    from slopcollect.detect.tier2_cutoff import CUT_COL, augment
+
+    base = {c: 0.0 for c in META_COLS}
+    base.update(age_days=10.0, github_age_days=-1.0, n_releases=1, n_owners=1)
+    pos = pd.DataFrame([base, base], index=["a", "a"])
+    pos[CUT_COL] = 500.0
+    pos["y"], pos["model"] = 1, "m"
+    aug = augment(pos, atk.Costs(), 5.0, k=4, seed=0)
+    assert len(aug) == 8 and (aug[CUT_COL] == 500.0).all() and (aug["y"] == 1).all()
+    assert (aug["age_days"] >= 10.0).all() and set(np.unique(aug["age_days"] - 10.0)) <= {0.0, 30.0, 90.0, 365.0}
+    assert (aug["source_repo_verified"] == 1).all()
