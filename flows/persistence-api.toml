@@ -1,0 +1,147 @@
+# Độ bền của tên bịa giữa các phiên bản model: hỏi các phiên bản khác cùng họ đúng những câu hỏi đã chọn
+# ở variants-v1 (câu hỏi mà bản gốc đã bịa tên), mỗi câu 10 lần, theo cả ba tác vụ của Spracklen.
+#   Llama gốc: 3.1 8B  -> so với 3.3 70B, 4 Scout
+#   DeepSeek gốc: V4.1 Flash 1017 -> so với V3, V3.1, V3.2, V4 Flash 0731
+# Chi phí ước tính khoảng 7 USD (giá DeepInfra 14/11/2026). Sau đó chạy flows/label-enrich-glm.toml
+# (trích tên, tra PyPI trên cùng snapshot, metadata, gắn nhãn) rồi phân tích.
+[flow]
+name = "persistence-api"
+db = "data/slop.sqlite"
+
+[[steps]]
+name = "llama33-70b-deepinfra-code"
+stage = "generate"
+model = "llama33-70b-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:llama31-8b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "llama33-70b-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "llama33-70b-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:llama31-8b-deepinfra"]
+
+[[steps]]
+name = "llama33-70b-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "llama33-70b-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:llama31-8b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "llama4-scout-deepinfra-code"
+stage = "generate"
+model = "llama4-scout-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:llama31-8b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "llama4-scout-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "llama4-scout-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:llama31-8b-deepinfra"]
+
+[[steps]]
+name = "llama4-scout-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "llama4-scout-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:llama31-8b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "deepseek-v3-deepinfra-code"
+stage = "generate"
+model = "deepseek-v3-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "deepseek-v3-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "deepseek-v3-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+
+[[steps]]
+name = "deepseek-v3-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "deepseek-v3-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "deepseek-v31-deepinfra-code"
+stage = "generate"
+model = "deepseek-v31-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "deepseek-v31-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "deepseek-v31-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+
+[[steps]]
+name = "deepseek-v31-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "deepseek-v31-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "deepseek-v32-deepinfra-code"
+stage = "generate"
+model = "deepseek-v32-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "deepseek-v32-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "deepseek-v32-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+
+[[steps]]
+name = "deepseek-v32-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "deepseek-v32-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "deepseek-v4-flash-0731-deepinfra-code"
+stage = "generate"
+model = "deepseek-v4-flash-0731-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "deepseek-v4-flash-0731-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "deepseek-v4-flash-0731-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+
+[[steps]]
+name = "deepseek-v4-flash-0731-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "deepseek-v4-flash-0731-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10

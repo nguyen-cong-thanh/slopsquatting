@@ -246,7 +246,7 @@ def main() -> None:
     t2 = tier2(ds, nf)
     log.info("tầng 2 xong (%.0f giây)", time.time() - t0)
     attack_res = run_attack(ds, nf, t2, names_res, atk.Costs())
-    clean = lambda d: {k: (clean(v) if isinstance(v, dict) else v) for k, v in d.items() if not k.startswith("_")}  # noqa: E731
+    clean = lambda d: {k: (clean(v) if isinstance(v, dict) else v) for k, v in d.items() if not str(k).startswith("_")}  # noqa: E731
     res = {"data": describe(ds), "shared_names": shared, "name_only": clean(names_res), "tier2": clean(t2), "attack": attack_res}
     (out / "results.json").write_text(json.dumps(res, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     (out / "results.md").write_text(_md(res), encoding="utf-8")

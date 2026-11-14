@@ -1,0 +1,19 @@
+description = "DeepSeek V4 Flash (bản 0731) qua DeepInfra, không suy nghĩ (đo độ bền tên bịa giữa các phiên bản DeepSeek). Khóa API đọc từ file, không nằm trong repo."
+backend = "openai_compat"
+base_url = "https://api.deepinfra.com/v1/openai"
+model = "deepseek-ai/DeepSeek-V4-Flash-0731"
+api_key_env = "DEEPINFRA_API_KEY"
+api_key_file = "~/.config/deepinfra/api_key"
+concurrency = 128
+timeout_s = 300
+
+[params]
+seed_mode = "per_sample"
+
+[extra]
+think_style = "none"
+send_top_k = true
+send_seed = true
+
+[extra.extra_body]
+chat_template_kwargs = { thinking = false }
