@@ -49,6 +49,23 @@ def load_cutoffs(path: str = "configs/cutoffs.toml") -> dict[str, pd.Timestamp]:
         return {m: pd.Timestamp(v["date"]) for m, v in tomllib.load(f).items()}
 
 
+class CutoffRule:
+    """Luật: cảnh báo khi gói được đăng ký muộn hơn mốc dữ liệu của model đã gợi ý nó quá RULE_MARGIN ngày.
+    Không học từ dữ liệu, không dùng metadata làm giả được; ngưỡng cố định (không chỉnh theo báo nhầm 1%)."""
+
+    name = "luật: sau mốc của model gợi ý thì cảnh báo"
+    fixed_threshold = 0.5
+
+    def fit(self, X: pd.DataFrame, y: np.ndarray) -> "CutoffRule":
+        return self
+
+    def score(self, X: pd.DataFrame) -> np.ndarray:
+        return (X[CUT_COL].values > RULE_MARGIN).astype(float)
+
+
+RULE_MARGIN = 30
+
+
 def models() -> list[Model]:
     no_age = [c for c in META_COLS if c not in AGE_COLS]
     return [
@@ -163,12 +180,14 @@ def run(ds: Dataset, nf: NameFeaturizer, costs: atk.Costs, cutoffs: dict[str, pd
         "models": {},
     }
     fitted = {}
-    for mdl in models():
+    for mdl in [*models(), CutoffRule()]:
         mdl.fit(tr, tr["y"].values)
         s = mdl.score(te)
         neg, pos = s[te.y.values == 0], s[te.y.values == 1]
-        thr = threshold_at_fpr(neg)
-        r = {"auc": _r(auc(neg, pos)), "tpr_at_1pct_fpr": _r(rate(pos, thr))}
+        thr = getattr(mdl, "fixed_threshold", None)
+        thr = threshold_at_fpr(neg) if thr is None else thr
+        r = {"auc": _r(auc(neg, pos)), "tpr_at_1pct_fpr": _r(rate(pos, thr)), "fpr_llm_real": _r(rate(neg, thr)),
+             "fpr_llm_real_by_model": {SHORT[m]: _r(rate(s[(te.y.values == 0) & (te.model.values == m)], thr)) for m in use}}
         # Báo nhầm trên gói thật không do LLM gợi ý: coi như được từng model gợi ý, lấy trung bình.
         for key, df in fpr_sets.items():
             X = nf.frame(list(df.index)).join(df[META_COLS])
@@ -196,7 +215,7 @@ def run(ds: Dataset, nf: NameFeaturizer, costs: atk.Costs, cutoffs: dict[str, pd
             extra = pd.DataFrame({CUT_COL: _cut_feature(base["age_days"], now, cutoffs[m])}, index=cand)
             best = atk.fake_metadata(mdl, base, nfe, costs, desc_len_log, extra=extra)
             for (wait, budget), sc in best.items():
-                if budget not in (0, 1000):
+                if budget not in (0, 10, 1000):
                     continue
                 key = f"đăng ký mới, chờ {wait} ngày, {budget:g} USD"
                 curves.setdefault(key, {}).update(atk.evasion(vm, registrable, pd.Series(sc, index=cand) <= thr))
@@ -209,7 +228,7 @@ def run(ds: Dataset, nf: NameFeaturizer, costs: atk.Costs, cutoffs: dict[str, pd
             real_m = te[(te.y == 0) & (te.model == m)]
             rng = np.random.default_rng(123)
             for wait in (0, 365):
-                for budget in (0, 1000):
+                for budget in (0, 10, 1000):
                     sc = mimic_scores(mdl, nfe, base, extra, real_m, costs, wait, budget, rng)
                     curves.setdefault(f"bắt chước gói thật, đăng ký mới, chờ {wait} ngày, {budget:g} USD", {}).update(
                         atk.evasion(vm, registrable, pd.Series(sc, index=cand) <= thr))
@@ -238,10 +257,10 @@ def to_md(res: dict) -> str:
     L = [f"\n## {title} (ngày đăng ký so với mốc của model đã gợi ý)\n",
          f"Mốc: {res['cutoffs']}. Mỗi dòng là một cặp (gói, model gợi ý). Train {res['rows']['train']}, test {res['rows']['test']}.",
          f"Tỷ lệ gói thật (test) ra đời sau mốc của model đã gợi ý nó: {res['real_after_cutoff_share']}.\n",
-         "| Mô hình | AUC | Phát hiện @1% báo nhầm | Báo nhầm gói mới | Báo nhầm gói ngẫu nhiên | Phát hiện theo model |",
-         "|---|---|---|---|---|---|"]
+         "| Mô hình | AUC | Phát hiện | Báo nhầm gói thật LLM gợi ý (theo model) | Báo nhầm gói mới | Báo nhầm gói ngẫu nhiên | Phát hiện theo model |",
+         "|---|---|---|---|---|---|---|"]
     for k, r in res["models"].items():
-        L.append(f"| {k} | {r['auc']} | {r['tpr_at_1pct_fpr']} | {r['fpr_new_pkgs']} | {r['fpr_random_pypi']} | {r['tpr_by_model']} |")
+        L.append(f"| {k} | {r['auc']} | {r['tpr_at_1pct_fpr']} | {r['fpr_llm_real']} {r['fpr_llm_real_by_model']} | {r['fpr_new_pkgs']} | {r['fpr_random_pypi']} | {r['tpr_by_model']} |")
     a = res["attack"]
     L.append(f"\nTấn công (tỷ lệ né; cơ hội = chỉ cần đăng ký được). Tỷ lệ tên còn được gợi ý ở phiên bản khác: {a['persistence']}.\n")
     model_keys = [m for m in MODELS if SHORT[m] in short]

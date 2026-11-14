@@ -22,10 +22,17 @@ from slopcollect.detect.data import META_COLS
 
 @dataclass
 class Costs:
-    """Chi phí làm giả (USD). Giá trị tạm, cần đối chiếu nguồn trước khi đưa vào báo cáo."""
+    """Chi phí làm giả (USD), tra ngày 14/11/2026.
 
-    usd_per_star: float = 0.10           # sao GitHub mua (giá chợ đen, cần kiểm chứng)
-    usd_per_download: float = 0.00002    # tự tải gói bằng máy chủ/CI: gần như miễn phí (1 USD cho 50.000 lượt)
+    Sao GitHub: bảng giá 7 bên bán trong He và cộng sự, "4.5 Million (Suspected) Fake Stars in GitHub"
+    (arXiv 2412.13459, Table I, giá 07/2024): 0,10-1,62 USD/sao, trung vị ~0,31. Dùng mức rẻ nhất 0,10.
+    Lượt tải: chưa có nghiên cứu về chi phí trên PyPI. Tenable (2026) gửi request thẳng tới URL tarball npm được
+    ~17.000 lượt/giờ từ một máy; PyPI cũng đếm lượt tải từ log CDN. Giả định (của nhóm, không có trong nguồn) một
+    máy chủ thuê ~5 USD/tháng chạy liên tục: ~12 triệu lượt/tháng -> ~4e-7 USD/lượt.
+    """
+
+    usd_per_star: float = 0.10
+    usd_per_download: float = 4e-7
     budgets: list[float] = field(default_factory=lambda: [0, 1, 10, 100, 1000])
     waits_days: list[int] = field(default_factory=lambda: [0, 30, 90, 365])
 

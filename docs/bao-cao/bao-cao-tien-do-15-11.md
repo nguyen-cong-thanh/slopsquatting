@@ -86,7 +86,13 @@ Mỗi tên gói được gắn một nhãn theo chuỗi luật áp theo thứ t�
 | Tên bịa đã bị đăng ký | Có trên PyPI, nhưng có bằng chứng do người khác đăng ký theo tên LLM bịa | 155 |
 | Gói độc hại đã biết | Có trong danh sách OSV hoặc DataDog, và toàn bộ gói là độc hại | 67 |
 
-<div align="center"><em>Bảng 3. Phân bố nhãn, bộ luật rules-v3</em></div>
+<div align="center"><em>Bảng 3. Phân bố nhãn theo tên không trùng, bộ luật rules-v3</em></div>
+
+Bảng 3 đếm tên không trùng, gồm cả tên trích từ lệnh `import` và tên ở các lần hỏi lại. Xét theo tên không trùng, tên bịa nhiều hơn tên thật khoảng 2 lần. Xét theo lượt gợi ý thì ngược lại: tên thật chiếm 86,5% trong 633.335 lượt gợi ý ở lần hỏi gốc (Llama 72,3%, DeepSeek 95,0%, GLM 93,0%).
+
+Có hai lý do cho sự chênh lệch này:
+- Tên thật lặp lại nhiều: 100 tên thật hay gặp nhất chiếm 50,4% lượt gợi ý tên thật.
+- Tên thật trùng nhiều giữa các model: 3.978 tên thật được cả ba model gợi ý, so với 760 tên bịa.
 
 ### 2.2. Các lỗi đã phát hiện và sửa
 
