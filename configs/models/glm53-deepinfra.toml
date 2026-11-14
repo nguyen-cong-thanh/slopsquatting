@@ -1,0 +1,28 @@
+description = "GLM 5.3 (zai-org/GLM-5.3) qua DeepInfra, không suy nghĩ (prompt thô với khối suy nghĩ rỗng). Khóa API đọc từ file, không nằm trong repo."
+backend = "openai_compat"
+base_url = "https://api.deepinfra.com/v1/openai"
+model = "zai-org/GLM-5.3"
+api_key_env = "DEEPINFRA_API_KEY"
+api_key_file = "~/.config/deepinfra/api_key"
+concurrency = 64
+timeout_s = 300
+
+[params]
+seed_mode = "per_sample"
+
+[extra]
+send_top_k = true
+send_seed = true
+
+# Chat template chính thức của GLM-5.3 (Hugging Face zai-org/GLM-5.3, 14/11/2026) không có công tắc tắt
+# thinking: luôn kết thúc bằng "<|assistant|><think>", và chat_template_kwargs / reasoning_effort / thinking
+# đều không tắt được (model suy nghĩ ngay trong câu trả lời). Nên tự dựng prompt thô, gọi /completions, và
+# đặt sẵn khối suy nghĩ rỗng như template GLM-4.5/4.6 làm khi enable_thinking = false. Bỏ dòng
+# "Reasoning Effort" của template mới. So với bản nội bộ glm53-internal trên 100 câu (tác vụ liệt kê gói,
+# temperature 0.01): độ trùng tên trung bình 0.38 (GLM-5.2: 0.27), tức cùng model nhưng khác cách triển khai.
+[extra.raw_prompt]
+prefix = "[gMASK]<sop>"
+system = "<|system|>{content}"
+user = "<|user|>{content}"
+assistant = "<|assistant|>\n<think></think>{content}"
+generation = "<|assistant|>\n<think></think>"

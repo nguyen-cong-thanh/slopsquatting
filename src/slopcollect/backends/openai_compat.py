@@ -13,6 +13,20 @@ from slopcollect.util import http_request
 #   chat_template_kwargs: vLLM / SGLang (Qwen3, GLM-4.5+ ...) -> {"chat_template_kwargs": {"enable_thinking": bool}}
 #   zhipu: API kiểu Zhipu/Z.ai -> {"thinking": {"type": "enabled" | "disabled"}}
 #   none: không gửi gì
+# Có model mà chat template không có công tắc tắt thinking (GLM-5.3 trên DeepInfra: template luôn mở <think>).
+# Khi đó đặt [extra.raw_prompt] để tự dựng prompt thô và gọi /completions; xem configs/models/glm53-deepinfra.toml.
+
+
+def render_raw_prompt(messages: list[dict[str, str]], fmt: dict[str, str]) -> str:
+    """Dựng prompt thô từ các tin nhắn theo các mẫu prefix / system / user / assistant / generation."""
+    out = [fmt.get("prefix", "")]
+    for m in messages:
+        tpl = fmt.get(m["role"])
+        if tpl is None:
+            raise BackendError(f"raw_prompt chưa có mẫu cho vai '{m['role']}'", transient=False)
+        out.append(tpl.replace("{content}", m["content"]))
+    out.append(fmt.get("generation", ""))
+    return "".join(out)
 
 
 def _think_fields(style: str, think: bool) -> dict[str, Any]:
@@ -29,7 +43,12 @@ def _think_fields(style: str, think: bool) -> dict[str, Any]:
 class OpenAICompatBackend(Backend):
     def chat(self, messages: list[dict[str, str]], params: dict[str, Any], seed: int | None) -> ChatResult:
         extra = self.cfg.extra
-        body: dict[str, Any] = {"model": self.cfg.model, "messages": messages, "stream": False}
+        raw = extra.get("raw_prompt")
+        body: dict[str, Any] = {"model": self.cfg.model, "stream": False}
+        if raw:
+            body["prompt"] = render_raw_prompt(messages, raw)
+        else:
+            body["messages"] = messages
         for k in ("temperature", "top_p", "max_tokens"):
             if params.get(k) is not None:
                 body[k] = params[k]
@@ -38,7 +57,7 @@ class OpenAICompatBackend(Backend):
             body["top_k"] = params["top_k"]
         if seed is not None and extra.get("send_seed", True):
             body["seed"] = seed
-        if params.get("think") is not None:
+        if params.get("think") is not None and not raw:
             body.update(_think_fields(extra.get("think_style", "chat_template_kwargs"), bool(params["think"])))
         body.update(extra.get("extra_body", {}))
 
@@ -46,19 +65,20 @@ class OpenAICompatBackend(Backend):
         key = self.api_key()
         if key:
             headers["Authorization"] = f"Bearer {key}"
-        url = self.cfg.base_url.rstrip("/") + "/chat/completions"
+        endpoint = "completions" if raw else "chat/completions"
+        url = self.cfg.base_url.rstrip("/") + "/" + endpoint
         t0 = time.monotonic()
         resp = http_request(url, method="POST", json_body=body, headers=headers, timeout=self.cfg.timeout_s)
         latency = int((time.monotonic() - t0) * 1000)
-        raise_for_response(resp, "chat/completions")
+        raise_for_response(resp, endpoint)
         data = resp.json()
         if data.get("error"):
-            raise BackendError(f"chat/completions: {data['error']}", transient=False)
+            raise BackendError(f"{endpoint}: {data['error']}", transient=False)
         try:
             choice = data["choices"][0]
         except (KeyError, IndexError):
             raise BackendError(f"Phản hồi không có choices: {str(data)[:300]}", transient=True) from None
-        msg = choice.get("message") or {}
+        msg = choice.get("message") or {"content": choice.get("text")}
         text, inline_think = split_think_tags(msg.get("content") or "")
         reasoning = msg.get("reasoning_content") or msg.get("reasoning") or inline_think
         usage = data.get("usage") or {}
