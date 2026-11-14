@@ -24,17 +24,15 @@ from slopcollect.stages.label import LABELER_VERSION
 METHODS = ("pip_install", "llm_list")
 MARGIN_DAYS = 30  # gói phát hành ngay sau mốc vẫn có thể đã có trên GitHub trước đó
 
-# model -> (mốc, loại nguồn, ghi chú nguồn). Kiểm tra ngày 14/11/2026.
-CUTOFFS: dict[str, tuple[str, str, str]] = {
-    "llama31-8b-deepinfra": ("2023-12-31", "chính thức", "Meta model card Llama 3.1: pretraining data cutoff December 2023"),
-    "llama33-70b-deepinfra": ("2023-12-31", "chính thức", "Meta model card Llama 3.3: pretraining data cutoff December 2023"),
-    "llama4-scout-deepinfra": ("2024-08-31", "chính thức", "Meta, trang model Llama 4: knowledge cutoff August 2024"),
-    "deepseek-v3-deepinfra": ("2024-07-31", "cộng đồng", "DataLearner: mốc chính thức cuối cùng của DeepSeek là 07/2024 (V3-0324)"),
-    "deepseek-v31-deepinfra": ("2025-07-31", "cộng đồng", "OpenRouter 03/2025, Digit 07/2025; lấy 07/2025"),
-    "deepseek-v41-flash-deepinfra": ("2026-03-31", "cộng đồng", "\"đầu 2026\" (gradually.ai, model tự khai bằng tiếng Anh); lấy hết 03/2026"),
-    "glm53-internal": ("2025-12-31", "cộng đồng", "innfactory: cuối 2025 (Roboflow 03/2026 là cho bản Flash)"),
-    "glm53-deepinfra": ("2025-12-31", "cộng đồng", "như glm53-internal"),
-}
+def _cutoffs(path: str = "configs/cutoffs.toml") -> dict[str, tuple[str, str, str]]:
+    """model -> (mốc, loại nguồn, ghi chú nguồn), đọc từ file cấu hình dùng chung với luật nhãn after_model_cutoff."""
+    import tomllib
+
+    with open(path, "rb") as f:
+        return {m: (v["date"], "chính thức" if v["kind"] == "official" else "cộng đồng", v["note"]) for m, v in tomllib.load(f).items()}
+
+
+CUTOFFS = _cutoffs()
 
 
 def analyse(db: str) -> dict:

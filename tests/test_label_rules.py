@@ -41,3 +41,31 @@ def test_placeholder_ignores_long_readme():
     assert rule_placeholder({"features": {"summary": "PEFT"}, "description": long_readme}, cfg) is None
     assert rule_placeholder({"features": {"summary": "DEPRECATED; use python-ldap instead"}, "description": long_readme}, cfg)[0] == "placeholder"
     assert rule_placeholder({"features": {"summary": ""}, "description": "# Security Holding Package\nplaceholder"}, cfg)[0] == "placeholder"
+
+
+def _cut_info(models, first, **feat):
+    return {"models": set(models), "version": feat.pop("version", "1.2.3"),
+            "features": {"first_release_at": first, **feat}}
+
+
+def test_after_model_cutoff():
+    from datetime import datetime, timezone
+
+    from slopcollect.stages.label import rule_after_model_cutoff
+
+    cfg = {"cutoffs": {"a": datetime(2023, 12, 31, tzinfo=timezone.utc), "b": datetime(2025, 12, 31, tzinfo=timezone.utc)}, "cutoff_margin_days": 30}
+    # Ra đời trước mốc (hoặc trong khoảng đệm): không áp dụng.
+    assert rule_after_model_cutoff(_cut_info(["a"], "2024-01-15T00:00:00Z"), cfg) is None
+    # Phải sau mốc của MỌI model đã gợi ý: b có mốc muộn hơn nên không áp dụng.
+    assert rule_after_model_cutoff(_cut_info(["a", "b"], "2025-06-01T00:00:00Z", summary=""), cfg) is None
+    # Model chưa rõ mốc: không áp dụng.
+    assert rule_after_model_cutoff(_cut_info(["a", "x"], "2026-06-01T00:00:00Z", summary=""), cfg) is None
+    # Gói rỗng: tên bịa đã bị đăng ký.
+    lab, review, ev = rule_after_model_cutoff(_cut_info(["a"], "2025-03-15T00:00:00Z", summary="Add your description here"), cfg)
+    assert (lab, review) == ("registered_hallucination", False) and ev["latest_cutoff"] == "2023-12-31"
+    # Gói hợp lệ trùng tên (thuộc tổ chức, nhiều lượt tải): giữ real.
+    lab, review, ev = rule_after_model_cutoff(_cut_info(["a"], "2024-06-25T00:00:00Z", summary="CUDA target for Numba", has_organization=1, downloads_last_month=459353), cfg)
+    assert (lab, review) == ("real", False) and ev["legit"]
+    # Không đủ bằng chứng: cần kiểm chứng tay.
+    lab, review, _ = rule_after_model_cutoff(_cut_info(["a"], "2025-04-23T00:00:00Z", summary="Efficient asyncio based web crawler", n_releases=3), cfg)
+    assert (lab, review) == ("registered_hallucination", True)

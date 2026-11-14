@@ -36,6 +36,7 @@ DEFAULT_RULES = [
     "placeholder",
     "known_hallucination",
     "after_cutoff",
+    "after_model_cutoff",
     "young_low_downloads",
     "real",
 ]
@@ -54,9 +55,10 @@ DEFAULT_PLACEHOLDER_PATTERNS = [
     r"\bnot the package you\b",
 ]
 
+# rules-v3: thêm after_model_cutoff (gói ra đời sau mốc dữ liệu của mọi model đã gợi ý nó).
 # rules-v1: bản đầu. rules-v2: gói thật chỉ bị chiếm quyền vài phiên bản không còn là known_malicious;
 # luật placeholder chỉ xét tóm tắt và mô tả ngắn (bản v1 sai khoảng 95% trên mẫu duyệt tay).
-LABELER_VERSION = "rules-v2"
+LABELER_VERSION = "rules-v3"
 
 LABELS = {"real", "hallucinated_absent", "registered_hallucination", "placeholder", "known_malicious", "unlabeled", "stdlib"}
 
@@ -148,6 +150,49 @@ def rule_after_cutoff(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | No
     return None
 
 
+# Bằng chứng cho luật after_model_cutoff, đặt trước khi xem kết quả (14/11/2026).
+TEMPLATE_SUMMARIES = {"", "unknown", "add your description here", "a template for projects that will be distributed on pypi.",
+                      "a small example package", "a sample python project", "my package", "test", "test package"}
+TRIVIAL_VERSIONS = {"0.0.0", "0.0.1", "0.0.1a0", "0.1", "0.1.0", "1.0.0"}
+
+
+@register("label_rule", "after_model_cutoff")
+def rule_after_model_cutoff(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
+    """Gói ra đời (lần tải lên đầu, kể cả bản đã xóa) sau mốc dữ liệu của MỌI model đã gợi ý nó, cộng khoảng đệm:
+    model không thể biết gói này, nên tên do model bịa ra rồi mới có người đăng ký. Bằng chứng quyết định
+    ý đồ: gói rỗng/giữ chỗ -> registered_hallucination; gói hợp lệ trùng tên -> real; còn lại cần kiểm chứng."""
+    cuts, models = cfg.get("cutoffs") or {}, info.get("models") or set()
+    if not models or any(m not in cuts for m in models):
+        return None  # có model chưa rõ mốc
+    f = info["features"]
+    first = parse_time(f.get("first_release_at"))
+    latest = max(cuts[m] for m in models)
+    if not first or first <= latest + timedelta(days=cfg["cutoff_margin_days"]):
+        return None
+    ev: dict[str, Any] = {"first_release_at": f.get("first_release_at"), "latest_cutoff": latest.date().isoformat(), "models": sorted(models)}
+    legit = []
+    if f.get("has_organization"):
+        legit.append("thuộc tổ chức trên PyPI")
+    if f.get("source_repo_verified"):
+        legit.append("link kho mã đã xác minh")
+    if (f.get("n_releases") or 0) >= 5 and (f.get("github_stars") or 0) >= 10:
+        legit.append(">= 5 bản phát hành và >= 10 sao GitHub")
+    if (f.get("downloads_last_month") or 0) >= 100_000:
+        legit.append(">= 100k lượt tải/tháng")
+    squat = []
+    if (f.get("summary") or "").strip().lower() in TEMPLATE_SUMMARIES:
+        squat.append("tóm tắt trống hoặc mẫu")
+    if (f.get("n_releases") or 0) == 1 and (info.get("version") or "") in TRIVIAL_VERSIONS and (f.get("description_len") or 0) < 300:
+        squat.append("một bản phát hành tầm thường, mô tả ngắn")
+    ev.update(squat=squat, legit=legit)
+    if legit and not squat:
+        return ("real", False, ev)
+    if squat and not legit:
+        return ("registered_hallucination", False, ev)
+    ev["why"] = "chưa đủ bằng chứng (hoặc bằng chứng mâu thuẫn): kiểm chứng tay"
+    return ("registered_hallucination", True, ev)
+
+
 @register("label_rule", "young_low_downloads")
 def rule_young_low_downloads(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
     f = info["features"]
@@ -165,6 +210,14 @@ def rule_young_low_downloads(info: dict[str, Any], cfg: dict[str, Any]) -> Verdi
 @register("label_rule", "real")
 def rule_real(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
     return ("real", False, info.get("compromised") or {})
+
+
+def _read_cutoffs(path: Any) -> dict[str, datetime]:
+    import tomllib
+
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+    return {m: datetime.fromisoformat(v["date"]).replace(tzinfo=timezone.utc) for m, v in data.items()}
 
 
 def _read_overrides(path: Any) -> dict[str, dict[str, str]]:
@@ -201,6 +254,8 @@ def label(
     hallucination_lists: list[str] | None = None,
     malicious_lists: list[str] | None = None,
     overrides_csv: str | None = "data/review/overrides.csv",
+    cutoffs_file: str | None = "configs/cutoffs.toml",
+    cutoff_margin_days: int = 30,
     review_csv: str | None = "data/review/needs_review.csv",
 ) -> dict[str, Any]:
     """Gắn nhãn cho mọi tên đã kiểm tra trong snapshot.
@@ -218,6 +273,8 @@ def label(
         "max_downloads_last_month": max_downloads_last_month,
         "placeholder_patterns": placeholder_patterns or DEFAULT_PLACEHOLDER_PATTERNS,
         "placeholder_max_desc": placeholder_max_desc,
+        "cutoffs": _read_cutoffs(ctx.path(cutoffs_file)) if cutoffs_file and ctx.path(cutoffs_file).exists() else {},
+        "cutoff_margin_days": cutoff_margin_days,
         "hallucination_lists": hallucination_lists or ["0pstech", "depscope"],
         "malicious_lists": malicious_lists or ["datadog", "osv_malicious"],
     }
@@ -229,8 +286,15 @@ def label(
         lists.setdefault(r[0], {})[r[1]] = json.loads(r[2]) if r[2] else {}
     features = {r["norm_name"]: dict(r) for r in conn.execute("SELECT * FROM package_features")}
     descriptions: dict[str, str] = {}
+    versions: dict[str, str] = {}
     for r in conn.execute("SELECT norm_name, raw_json FROM metadata_raw WHERE source = 'pypi_json' AND raw_json IS NOT NULL"):
-        descriptions[r[0]] = (json.loads(r[1]).get("info", {}).get("description") or "")[:3000]
+        inf = json.loads(r[1]).get("info", {})
+        descriptions[r[0]] = (inf.get("description") or "")[:3000]
+        versions[r[0]] = inf.get("version") or ""
+    # Model nào đã gợi ý mỗi tên (cho luật after_model_cutoff).
+    suggested_by: dict[str, set[str]] = {}
+    for r in conn.execute("SELECT DISTINCT m.norm_name, g.model_key FROM mentions m JOIN generations g ON g.gen_id = m.gen_id"):
+        suggested_by.setdefault(r[0], set()).add(r[1])
 
     q = "SELECT * FROM package_status ps WHERE ps.snapshot_id = ?"
     if names_from == "mentions":
@@ -251,6 +315,8 @@ def label(
                 "lists": lists.get(n, {}),
                 "override": overrides.get(n),
                 "description": descriptions.get(n),
+                "version": versions.get(n),
+                "models": suggested_by.get(n, set()),
             }
             for rule_name, fn in rule_fns:
                 verdict = fn(info, cfg)
