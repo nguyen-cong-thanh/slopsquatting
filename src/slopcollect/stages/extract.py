@@ -14,7 +14,8 @@ from slopcollect.registry import register
 
 # x1: bản đầu. x2: dừng ở ghi chú trong ngoặc sau "pip install"; bảng ánh xạ bổ sung; namespace google.*/azure.*.
 # x3: "from a.b import C" không ghép C (trừ gốc namespace); bỏ hậu tố _v1 ở google.cloud; thêm ánh xạ.
-EXTRACTOR_VERSION = "x3"
+# x4: llm_list bỏ từ nối lẫn vào danh sách ("None, however, ...").
+EXTRACTOR_VERSION = "x4"
 
 
 @register("stage", "extract")
@@ -22,7 +23,7 @@ def extract(
     ctx: Any,
     version: str = EXTRACTOR_VERSION,
     methods: dict[str, list[str]] | None = None,
-    batch: int = 500,
+    batch: int = 5000,  # mỗi lần commit là một lần fsync (synchronous=FULL): lô nhỏ làm chậm hẳn
     replace_other_versions: bool = True,
 ) -> dict[str, Any]:
     """Trích tên cho mọi câu trả lời chưa được trích ở phiên bản ``version``.

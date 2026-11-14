@@ -16,8 +16,10 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
-MODELS = ("llama31-8b-deepinfra", "deepseek-v41-flash-deepinfra")
-SHORT = {"llama31-8b-deepinfra": "llama", "deepseek-v41-flash-deepinfra": "deepseek"}
+from slopcollect.stages.label import LABELER_VERSION
+
+MODELS = ("llama31-8b-deepinfra", "deepseek-v41-flash-deepinfra", "glm53-internal")
+SHORT = {"llama31-8b-deepinfra": "llama", "deepseek-v41-flash-deepinfra": "deepseek", "glm53-internal": "glm"}
 METHODS = ("pip_install", "llm_list")
 HALLUCINATED = ("hallucinated_absent", "registered_hallucination")
 SELECTION = "variants-v1"
@@ -111,7 +113,7 @@ def load(db: str, *, seed: str = "split-v1", test_share: float = 0.25) -> Datase
         f"WHERE v.model_key IN ({ph_m}) AND v.method IN ({ph_t}) GROUP BY 1, 2",
         conn, params=[*MODELS, *METHODS],
     )
-    labels = pd.read_sql_query("SELECT norm_name, label FROM labels WHERE labeler_version = 'rules-v1'", conn)
+    labels = pd.read_sql_query("SELECT norm_name, label FROM labels WHERE labeler_version = ?", conn, params=[LABELER_VERSION])
     status = pd.read_sql_query(
         "SELECT norm_name, exists_on_pypi, registrable, reason FROM package_status WHERE snapshot_id = ?", conn, params=[sid]
     )
@@ -120,6 +122,9 @@ def load(db: str, *, seed: str = "split-v1", test_share: float = 0.25) -> Datase
     names = by_name.join(labels.set_index("norm_name")).join(status.set_index("norm_name"))
     names = names[names["label"].isin(["real", *HALLUCINATED, "placeholder"])].copy()
     names["y"] = names["label"].isin(HALLUCINATED).astype(int)
+    for m in MODELS:  # model chưa có dữ liệu vẫn có cột
+        names[f"n_{SHORT[m]}"] = names.get(f"n_{SHORT[m]}", 0)
+    names["n_models"] = sum((names[f"n_{SHORT[m]}"] > 0).astype(int) for m in MODELS)
     names["cluster"] = [cluster_key(n) for n in names.index]
 
     # Các lần hỏi lại: mọi tên bịa xuất hiện, theo lần hỏi gốc (sample) của câu hỏi đã chọn.

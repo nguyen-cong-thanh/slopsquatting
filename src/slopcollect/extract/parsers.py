@@ -253,6 +253,8 @@ def find_imports(text: str) -> list[Found]:
 
 _BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*")
 _DROP = {"none", "nan", "python", "python3", "pip", "n/a"}
+# Từ nối trong câu văn lẫn vào danh sách ("None, however, ..."): không phải tên gói.
+_DROP |= {"however", "but", "although", "also", "additionally", "alternatively", "note", "etc", "yes", "no"}
 
 
 def parse_package_list(text: str, *, truncated: bool = False) -> list[Found]:

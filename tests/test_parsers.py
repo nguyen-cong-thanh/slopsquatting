@@ -141,6 +141,8 @@ def test_llm_list_formats():
     ]
     assert names(parse_package_list("None")) == []
     assert names(parse_package_list("python, os module, pip install requests")) == ["requests"]
+    # Từ nối lẫn vào danh sách không phải tên gói.
+    assert names(parse_package_list("None, however, you might need: requests, beautifulsoup4")) == ["beautifulsoup4"]
 
 
 def test_llm_list_truncated_drops_last_item():

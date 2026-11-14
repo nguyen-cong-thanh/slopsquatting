@@ -14,6 +14,7 @@ from typing import Any, Iterable
 
 from slopcollect.db import latest_snapshot
 from slopcollect.registry import register
+from slopcollect.stages.label import LABELER_VERSION
 
 BASE_TABLES = (
     "prompts", "prompt_tags", "generations", "mentions", "package_status", "package_features",
@@ -89,7 +90,7 @@ def export(
     out_dir: str = "data/exports",
     format: str = "parquet",
     tables: list[str] | None = None,
-    labeler_version: str = "rules-v1",
+    labeler_version: str = LABELER_VERSION,
     snapshot: str = "latest",
 ) -> dict[str, Any]:
     if format not in ("parquet", "csv"):

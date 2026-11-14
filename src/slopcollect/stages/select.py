@@ -11,6 +11,7 @@ from typing import Any
 
 from slopcollect.registry import register
 from slopcollect.util import stable_order_key
+from slopcollect.stages.label import LABELER_VERSION
 
 
 @register("stage", "select_variants")
@@ -19,7 +20,7 @@ def select_variants(
     selection_id: str = "variants-v1",
     n: int = 500,
     labels: list[str] | None = None,
-    labeler_version: str = "rules-v1",
+    labeler_version: str = LABELER_VERSION,
     models: list[str] | None = None,
     tasks: list[str] | None = None,
     methods: list[str] | None = None,

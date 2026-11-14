@@ -17,6 +17,7 @@ from slopcollect.config import ConfigError
 from slopcollect.db import latest_snapshot
 from slopcollect.registry import register
 from slopcollect.util import stable_order_key, utcnow
+from slopcollect.stages.label import LABELER_VERSION
 
 HALLUCINATED = ("hallucinated_absent", "registered_hallucination")
 CHECKPOINTS = (10, 25, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 18033)
@@ -62,7 +63,7 @@ def _generation_stats(ctx: Any, n_full: int) -> dict[str, Any]:
 def stats(
     ctx: Any,
     out: str = "data/exports/stats",
-    labeler_version: str = "rules-v1",
+    labeler_version: str = LABELER_VERSION,
     snapshot: str = "latest",
     methods: list[str] | None = None,
     order_seed: str = "slopcollect-v1",

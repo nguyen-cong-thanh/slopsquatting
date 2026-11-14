@@ -54,6 +54,10 @@ DEFAULT_PLACEHOLDER_PATTERNS = [
     r"\bnot the package you\b",
 ]
 
+# rules-v1: bản đầu. rules-v2: gói thật chỉ bị chiếm quyền vài phiên bản không còn là known_malicious;
+# luật placeholder chỉ xét tóm tắt và mô tả ngắn (bản v1 sai khoảng 95% trên mẫu duyệt tay).
+LABELER_VERSION = "rules-v2"
+
 LABELS = {"real", "hallucinated_absent", "registered_hallucination", "placeholder", "known_malicious", "unlabeled", "stdlib"}
 
 Verdict = tuple[str, bool, dict[str, Any]]
@@ -67,8 +71,22 @@ def rule_override(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
 
 @register("label_rule", "known_malicious")
 def rule_known_malicious(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
-    hit = sorted(info["lists"] & set(cfg["malicious_lists"]))
-    return ("known_malicious", False, {"lists": hit}) if hit else None
+    hit = sorted(set(info["lists"]) & set(cfg["malicious_lists"]))
+    if not hit:
+        return None
+    # Gói thật bị chiếm quyền vài phiên bản (litellm, ultralytics...): danh sách chỉ ghi các phiên bản đó,
+    # gói vẫn còn trên PyPI với nhiều phiên bản khác. Không coi là gói độc hại; ghi lại làm bằng chứng.
+    bad: set[str] = set()
+    for lid in hit:
+        versions = (info["lists"].get(lid) or {}).get("versions")
+        if not versions:  # None hoặc rỗng: mọi phiên bản
+            return ("known_malicious", False, {"lists": hit})
+        bad |= set(versions)
+    n_releases = info["features"].get("n_releases") or 0
+    if info["status"]["exists_on_pypi"] and n_releases > len(bad):
+        info["compromised"] = {"compromised_versions": sorted(bad), "lists": hit}
+        return None
+    return ("known_malicious", False, {"lists": hit, "versions": sorted(bad)})
 
 
 @register("label_rule", "stdlib_name")
@@ -104,7 +122,10 @@ def rule_empty_project(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | N
 
 @register("label_rule", "placeholder")
 def rule_placeholder(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
-    text = f"{info['features'].get('summary') or ''}\n{info.get('description') or ''}".lower()
+    # Chỉ xét phần tóm tắt, và phần mô tả khi mô tả rất ngắn: README dài của gói thật hay có chữ
+    # "deprecated"/"reserved" ở đâu đó (peft, natsort, amqp...), không có nghĩa gói là bản giữ chỗ.
+    desc = (info.get("description") or "").strip()
+    text = f"{info['features'].get('summary') or ''}\n{desc if len(desc) <= cfg['placeholder_max_desc'] else ''}".lower()
     for pat in cfg["placeholder_patterns"]:
         m = re.search(pat, text)
         if m:
@@ -114,7 +135,7 @@ def rule_placeholder(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | Non
 
 @register("label_rule", "known_hallucination")
 def rule_known_hallucination(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
-    hit = sorted(info["lists"] & set(cfg["hallucination_lists"]))
+    hit = sorted(set(info["lists"]) & set(cfg["hallucination_lists"]))
     return ("registered_hallucination", True, {"lists": hit}) if hit else None
 
 
@@ -143,7 +164,7 @@ def rule_young_low_downloads(info: dict[str, Any], cfg: dict[str, Any]) -> Verdi
 
 @register("label_rule", "real")
 def rule_real(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
-    return ("real", False, {})
+    return ("real", False, info.get("compromised") or {})
 
 
 def _read_overrides(path: Any) -> dict[str, dict[str, str]]:
@@ -168,13 +189,14 @@ REVIEW_COLUMNS = [
 @register("stage", "label")
 def label(
     ctx: Any,
-    labeler_version: str = "rules-v1",
+    labeler_version: str = LABELER_VERSION,
     rules: list[str] | None = None,
     snapshot: str = "latest",
     names_from: str = "mentions",
     cutoff_date: str | None = None,
     young_days: int = 180,
     max_downloads_last_month: int = 1000,
+    placeholder_max_desc: int = 400,
     placeholder_patterns: list[str] | None = None,
     hallucination_lists: list[str] | None = None,
     malicious_lists: list[str] | None = None,
@@ -195,15 +217,16 @@ def label(
         "young_days": young_days,
         "max_downloads_last_month": max_downloads_last_month,
         "placeholder_patterns": placeholder_patterns or DEFAULT_PLACEHOLDER_PATTERNS,
+        "placeholder_max_desc": placeholder_max_desc,
         "hallucination_lists": hallucination_lists or ["0pstech", "depscope"],
         "malicious_lists": malicious_lists or ["datadog", "osv_malicious"],
     }
     rule_fns = [(r, registry.get("label_rule", r)) for r in (rules or DEFAULT_RULES)]
     overrides = _read_overrides(ctx.path(overrides_csv)) if overrides_csv and ctx.path(overrides_csv).exists() else {}
 
-    lists: dict[str, set[str]] = {}
-    for r in conn.execute("SELECT norm_name, list_id FROM known_lists"):
-        lists.setdefault(r[0], set()).add(r[1])
+    lists: dict[str, dict[str, dict[str, Any]]] = {}  # tên -> {list_id: extra}
+    for r in conn.execute("SELECT norm_name, list_id, extra_json FROM known_lists"):
+        lists.setdefault(r[0], {})[r[1]] = json.loads(r[2]) if r[2] else {}
     features = {r["norm_name"]: dict(r) for r in conn.execute("SELECT * FROM package_features")}
     descriptions: dict[str, str] = {}
     for r in conn.execute("SELECT norm_name, raw_json FROM metadata_raw WHERE source = 'pypi_json' AND raw_json IS NOT NULL"):
@@ -225,7 +248,7 @@ def label(
                 "norm_name": n,
                 "status": st,
                 "features": features.get(n, {}),
-                "lists": lists.get(n, set()),
+                "lists": lists.get(n, {}),
                 "override": overrides.get(n),
                 "description": descriptions.get(n),
             }

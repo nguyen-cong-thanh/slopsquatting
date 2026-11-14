@@ -84,6 +84,8 @@ def datadog(ctx: Any, path: str | None = None) -> Iterator[tuple[str, dict[str, 
 def osv_malicious(ctx: Any, path: str | None = None) -> Iterator[tuple[str, dict[str, Any]]]:
     url = "https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip"
     blob = _read(ctx, path, url, "osv_pypi_all.zip")
+    # Một tên có thể có nhiều bản ghi MAL-*: gộp mã và phiên bản. versions = None nghĩa là mọi phiên bản.
+    merged: dict[str, dict[str, Any]] = {}
     with zipfile.ZipFile(io.BytesIO(blob)) as zf:
         for member in zf.namelist():
             if not Path(member).name.startswith("MAL-"):
@@ -93,8 +95,24 @@ def osv_malicious(ctx: Any, path: str | None = None) -> Iterator[tuple[str, dict
                 continue
             for aff in rec.get("affected", []):
                 pkg = aff.get("package", {})
-                if pkg.get("ecosystem") == "PyPI" and pkg.get("name"):
-                    yield pkg["name"], {"id": rec.get("id"), "published": rec.get("published")}
+                if pkg.get("ecosystem") != "PyPI" or not pkg.get("name"):
+                    continue
+                e = merged.setdefault(normalize_pep426_name(pkg["name"]), {"raw": pkg["name"], "ids": [], "published": None, "versions": []})
+                e["ids"].append(rec.get("id"))
+                e["published"] = min(filter(None, [e["published"], rec.get("published")]), default=None)
+                if e["versions"] is not None:
+                    e["versions"] = None if _osv_all_versions(aff) else sorted(set(e["versions"]) | set(aff.get("versions") or []))
+    for e in merged.values():
+        yield e["raw"], {"id": e["ids"][0], "ids": e["ids"], "published": e["published"], "versions": e["versions"]}
+
+
+def _osv_all_versions(aff: dict[str, Any]) -> bool:
+    """Bản ghi OSV áp cho mọi phiên bản: không liệt kê phiên bản, hoặc có khoảng từ 0 không có điểm kết thúc."""
+    for rg in aff.get("ranges") or []:
+        ev = rg.get("events", [])
+        if any(x.get("introduced") == "0" for x in ev) and not any("fixed" in x or "last_affected" in x for x in ev):
+            return True
+    return not aff.get("versions") and not aff.get("ranges")
 
 
 @register("stage", "known_lists")
