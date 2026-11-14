@@ -29,3 +29,5 @@ stage = "export"
 
 [[steps]]
 stage = "stats"
+selection_id = "variants-v1"
+reask_models = { "glm53-internal" = "glm53-deepinfra" }

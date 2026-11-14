@@ -23,6 +23,8 @@ SHORT = {"llama31-8b-deepinfra": "llama", "deepseek-v41-flash-deepinfra": "deeps
 METHODS = ("pip_install", "llm_list")
 HALLUCINATED = ("hallucinated_absent", "registered_hallucination")
 SELECTION = "variants-v1"
+# Model dùng để hỏi lại câu đã chọn, nếu khác model gốc: GLM 5.3 thu thập gốc trên máy nội bộ, hỏi lại qua DeepInfra.
+REASK = {"glm53-internal": "glm53-deepinfra"}
 
 META_COLS = [
     "age_days", "log_downloads", "n_releases", "n_files", "log_stars", "has_github", "github_age_days",
@@ -130,9 +132,10 @@ def load(db: str, *, seed: str = "split-v1", test_share: float = 0.25) -> Datase
     # Các lần hỏi lại: mọi tên bịa xuất hiện, theo lần hỏi gốc (sample) của câu hỏi đã chọn.
     variants = pd.read_sql_query(
         f"SELECT s.norm_name AS original, s.model_key, s.prompt_id, v.root_sample_idx AS sample, v.norm_name AS variant "
-        f"FROM selections s JOIN v_mentions v ON v.prompt_id = s.prompt_id AND v.model_key = s.model_key "
+        f"FROM selections s JOIN v_mentions v ON v.prompt_id = s.prompt_id "
+        f"AND v.model_key = COALESCE((SELECT value FROM json_each(?) WHERE key = s.model_key), s.model_key) "
         f"WHERE s.selection_id = ? AND v.method IN ({ph_t})",
-        conn, params=[SELECTION, *METHODS],
+        conn, params=[json.dumps(REASK), SELECTION, *METHODS],
     )
     lab = labels.set_index("norm_name")["label"]
     variants = variants[variants["variant"].map(lab).isin(HALLUCINATED)].drop_duplicates()

@@ -1,0 +1,37 @@
+# GLM 5.3: chọn 250 tên bịa từ dữ liệu gốc (máy nội bộ) rồi hỏi lại câu gốc qua DeepInfra (glm53-deepinfra),
+# mỗi câu 10 lần (cả lần 0, để mọi lần hỏi lại cùng một nơi chạy), theo cả ba tác vụ của Spracklen.
+# Chỉ thay phần của GLM trong variants-v1. Phân tích nối selection của glm53-internal với câu trả lời của
+# glm53-deepinfra (REASK trong slopcollect/detect/data.py; tham số reask_models của bước stats).
+# Chi phí ước tính khoảng 10 USD (giá DeepInfra 14/11/2026). Sau đó chạy flows/label-enrich-glm.toml.
+[flow]
+name = "variants-glm"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "select_variants"
+selection_id = "variants-v1"
+models = ["glm53-internal"]
+n = 250
+
+[[steps]]
+name = "glm-code"
+stage = "generate"
+model = "glm53-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:glm53-internal"]
+n_samples = 10
+
+[[steps]]
+name = "glm-pkgs-code"
+stage = "generate"
+model = "glm53-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:glm53-internal"]
+
+[[steps]]
+name = "glm-pkgs-prompt"
+stage = "generate"
+model = "glm53-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:glm53-internal"]
+n_samples = 10

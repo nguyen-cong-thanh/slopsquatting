@@ -69,6 +69,7 @@ def stats(
     order_seed: str = "slopcollect-v1",
     n_full: int = 18033,
     selection_id: str | None = None,
+    reask_models: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     conn = ctx.conn
     meths = methods or ["pip_install", "llm_list"]
@@ -138,7 +139,7 @@ def stats(
             "curve": curve,
         }
     res["per_model"] = per_model
-    res["variants"] = _variant_stats(conn, selection_id, labeler_version, meths) if selection_id else None
+    res["variants"] = _variant_stats(conn, selection_id, labeler_version, meths, reask_models or {}) if selection_id else None
 
     path = ctx.path(out)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -147,23 +148,25 @@ def stats(
     return {"out": str(path.with_suffix(".md")), "models": list(per_model)}
 
 
-def _variant_stats(conn: Any, selection_id: str, labeler_version: str, meths: list[str]) -> dict[str, Any]:
+def _variant_stats(conn: Any, selection_id: str, labeler_version: str, meths: list[str], reask: dict[str, str]) -> dict[str, Any]:
+    """reask: model gốc -> model dùng để hỏi lại (GLM: chọn tên từ máy nội bộ, hỏi lại qua DeepInfra)."""
     sel = conn.execute("SELECT norm_name, model_key, prompt_id FROM selections WHERE selection_id = ?", (selection_id,)).fetchall()
     ph = ",".join("?" * len(meths))
     out_rows = []
     for s in sel:
+        model = reask.get(s["model_key"], s["model_key"])
         samples = {
             r[0]
             for r in conn.execute(
                 "SELECT DISTINCT sample_idx FROM generations WHERE model_key = ? AND prompt_id = ? AND parent_gen_id IS NULL AND error IS NULL",
-                (s["model_key"], s["prompt_id"]),
+                (model, s["prompt_id"]),
             )
         }
         rows = conn.execute(
             f"SELECT v.norm_name, v.root_sample_idx, l.label FROM v_mentions v "
             f"LEFT JOIN labels l ON l.norm_name = v.norm_name AND l.labeler_version = ? "
             f"WHERE v.model_key = ? AND v.prompt_id = ? AND v.method IN ({ph})",
-            (labeler_version, s["model_key"], s["prompt_id"], *meths),
+            (labeler_version, model, s["prompt_id"], *meths),
         ).fetchall()
         with_orig = {r["root_sample_idx"] for r in rows if r["norm_name"] == s["norm_name"]}
         hall_names = {r["norm_name"] for r in rows if r["label"] in HALLUCINATED}

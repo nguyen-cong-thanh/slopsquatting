@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import time
 from pathlib import Path
 
 SCHEMA_VERSION = 1
@@ -253,8 +254,17 @@ def connect(path: Path | str) -> sqlite3.Connection:
     # synchronous = FULL: mất điện / tắt cứng máy giữa lúc ghi cũng không hỏng file
     # (NORMAL ở chế độ DELETE còn một xác suất nhỏ hỏng file). Ghi ~15 giây một lần nên không chậm đáng kể.
     conn.execute("PRAGMA synchronous = FULL")
-    conn.executescript(SCHEMA)
-    conn.executescript(VIEWS)
+    # Tạo bảng/view cần khóa ghi; executescript không chờ hết timeout khi một luồng khác đang ghi,
+    # nên tự thử lại (chạy hai luồng cùng lúc trên một CSDL).
+    for attempt in range(30):
+        try:
+            conn.executescript(SCHEMA)
+            conn.executescript(VIEWS)
+            break
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e) or attempt == 29:
+                raise
+            time.sleep(2)
     cur = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'")
     row = cur.fetchone()
     if row is None:
