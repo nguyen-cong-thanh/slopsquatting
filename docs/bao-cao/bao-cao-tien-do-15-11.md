@@ -51,6 +51,20 @@ Số liệu tính trên lần hỏi gốc của mỗi câu hỏi; lượt gợi 
 
 <div align="center"><em>Bảng 1. Số liệu thu thập theo model, lần hỏi gốc</em></div>
 
+![Tỷ lệ tên bịa theo model, lần hỏi gốc](docs/images/bc-hinh-1-ty-le-ten-bia.png)
+
+<div align="center"><em>Hình 1. Tỷ lệ tên bịa theo model, lần hỏi gốc</em></div>
+
+GLM bịa ít trên mỗi lượt gợi ý (5,0%), nhưng mỗi câu trả lời liệt kê nhiều tên (17,9 tên), nên 35,3% câu hỏi vẫn có ít nhất một tên bịa.
+
+
+![Số tên bịa không trùng tích lũy theo số câu hỏi](docs/images/bc-hinh-2-tang-truong-ten-bia.png)
+
+<div align="center"><em>Hình 2. Số tên bịa không trùng tích lũy theo số câu hỏi</em></div>
+
+Các câu hỏi được xếp theo một thứ tự ngẫu nhiên cố định. Với cả ba model, số tên bịa mới vẫn tăng đều đến hết 18.033 câu hỏi, chưa chững lại. Nghĩa là hỏi thêm câu hỏi thì vẫn còn ra tên bịa mới.
+
+
 Tên bịa ở đây gồm tên chưa có trên PyPI và tên bịa đã bị người khác đăng ký (mục 2). Để đối chiếu, Spracklen và cộng sự (2025) báo cáo tỷ lệ trung bình 21,7% với LLM mã nguồn mở và 5,2% với LLM thương mại, cũng tính theo lượt gợi ý. Hai cách tính có thể khác nhau ở chỗ xử lý tên thư viện chuẩn.
 
 Số tên bịa trùng giữa các model:
@@ -67,7 +81,7 @@ Số tên bịa trùng giữa các model:
 ### 1.3. Dữ liệu hỏi lại
 
 - **Hỏi lại cùng model:** mỗi model chọn 250 cặp (tên bịa, câu hỏi gốc), rồi hỏi lại câu gốc 10 lần theo cả ba tác vụ. Dữ liệu này cho biết LLM lặp lại tên bịa thường đến mức nào và sinh ra những biến thể nào. Phần hỏi lại của GLM 5.3 chạy qua DeepInfra thay vì máy nội bộ; hai nơi chạy cho câu trả lời khác nhau (độ trùng tên trung bình 0,38 trên 100 câu thử), nên tỷ lệ lặp lại của GLM không so trực tiếp được với hai model còn lại.
-- **Hỏi các phiên bản khác cùng họ:** cùng các câu hỏi đã chọn được hỏi lại ở sáu phiên bản khác (bảng 7), mỗi câu 10 lần, để đo độ bền của tên bịa qua các phiên bản.
+- **Hỏi các phiên bản khác cùng họ:** cùng các câu hỏi đã chọn được hỏi lại ở sáu phiên bản khác (bảng 11), mỗi câu 10 lần, để đo độ bền của tên bịa qua các phiên bản.
 
 Mọi lượt gọi model đều hoàn tất, không còn câu nào lỗi.
 
@@ -198,7 +212,7 @@ Hai thuật toán học máy:
 | Các bộ trên, huấn luyện có mẫu tấn công | Như trên; tập huấn luyện có thêm gói tấn công đã biến đổi | GB | 3.6 |
 | Luật mốc | Chỉ đặc trưng mốc: cảnh báo khi giá trị lớn hơn 30 ngày | Không học | 3.6 |
 
-<div align="center"><em>Bảng 9. Các bộ phát hiện đã thử</em></div>
+<div align="center"><em>Bảng 7. Các bộ phát hiện đã thử</em></div>
 
 Thiết lập chung cho các mục 3.1–3.3 và 3.6:
 - **Chia tập:** train/test theo nhóm tên gần giống (mọi biến thể của một tên nằm cùng một phía). Mọi tên xuất hiện trong dữ liệu hỏi lại được đưa vào tập test, để phần tấn công chỉ dùng tên mà mô hình chưa thấy khi huấn luyện.
@@ -216,7 +230,7 @@ Thiết lập chung cho các mục 3.1–3.3 và 3.6:
 | Báo nhầm trên gói mới đăng | 6,8% | 5,5% |
 | Báo nhầm trên gói ngẫu nhiên | 7,3% | 6,4% |
 
-<div align="center"><em>Bảng 10. Bộ phát hiện chỉ dùng tên: tỷ lệ phát hiện ở mức báo nhầm 1%, và tỷ lệ báo nhầm ngoài phân phối</em></div>
+<div align="center"><em>Bảng 8. Bộ phát hiện chỉ dùng tên: tỷ lệ phát hiện ở mức báo nhầm 1%, và tỷ lệ báo nhầm ngoài phân phối</em></div>
 
 - Trên cùng phân phối, mô hình tốt nhất (AUC 0,81) bắt được 20,1% tên bịa.
 - Khi model đích không có trong dữ liệu huấn luyện, tỷ lệ phát hiện còn 3,4–15,1%.
@@ -238,7 +252,7 @@ Tầng 2 dùng cho tên có trên PyPI.
 | Tên và metadata, GB | 99,6% | 99,1% | 13,3% | 10,8% |
 | Tên và metadata, bỏ các đặc trưng tuổi gói, GB | 49,7% | 43,0% | 13,2% | 3,3% |
 
-<div align="center"><em>Bảng 11. Tầng 2: tỷ lệ phát hiện ở mức báo nhầm 1% trên gói thật do LLM gợi ý</em></div>
+<div align="center"><em>Bảng 9. Tầng 2: tỷ lệ phát hiện ở mức báo nhầm 1% trên gói thật do LLM gợi ý</em></div>
 
 - Mô hình có tuổi gói phát hiện 99,6% mẫu dương mô phỏng, nhưng cũng báo nhầm 99,1% gói thật mới đăng. Tức là mô hình gần như cảnh báo mọi gói mới.
 - Bỏ tuổi gói thì tỷ lệ phát hiện còn 49,7%.
@@ -267,7 +281,14 @@ Tỷ lệ né được tính như sau. Với mỗi câu hỏi đã chọn, lấy
 | 90 ngày | 91,3 / 77,0 / 61,5 | 91,3 / 77,0 / 61,5 | 64,2 / 49,3 / 37,9 | 91,9 / 78,4 / 63,2 |
 | 365 ngày | 91,9 / 78,4 / 63,2 | 91,9 / 78,4 / 63,2 | 91,9 / 78,4 / 63,2 | 91,9 / 78,4 / 63,2 |
 
-<div align="center"><em>Bảng 12. Tỷ lệ né (%) theo thời gian chờ và ngân sách, theo thứ tự Llama / DeepSeek / GLM</em></div>
+<div align="center"><em>Bảng 10. Tỷ lệ né (%) theo thời gian chờ và ngân sách, theo thứ tự Llama / DeepSeek / GLM</em></div>
+
+![Tỷ lệ né theo thời gian chờ, bộ phát hiện tên và metadata dùng GB, 0 USD](docs/images/bc-hinh-3-tan-cong-cho.png)
+
+<div align="center"><em>Hình 3. Tỷ lệ né theo thời gian chờ, bộ phát hiện tên và metadata dùng GB, 0 USD</em></div>
+
+Đường nét chấm là mức trần, tức tỷ lệ khi không có bộ phát hiện nào. Sau 90 ngày, cả ba đường đã gần chạm mức trần.
+
 
 - Với GB, ngân sách hầu như không thay đổi kết quả, còn thời gian chờ quyết định: chờ 90 ngày đã gần chạm mức trần.
 - Với LR, 1.000 USD đủ để né gần hết mà không cần chờ.
@@ -294,7 +315,14 @@ Phương pháp:
 | DeepSeek V4 Flash 0731 | 07/2026 | 44,0% | 14,9% | 56,2% | 66,3% |
 | Số cặp (DeepSeek) | | 250 | 94 | 73 | 83 |
 
-<div align="center"><em>Bảng 7. Tỷ lệ cặp được gợi ý lại ít nhất một lần trong 10 lần hỏi, theo phiên bản và theo số model chính cùng bịa ra tên</em></div>
+<div align="center"><em>Bảng 11. Tỷ lệ cặp được gợi ý lại ít nhất một lần trong 10 lần hỏi, theo phiên bản và theo số model chính cùng bịa ra tên</em></div>
+
+![Tỷ lệ cặp được gợi ý lại ở các phiên bản DeepSeek](docs/images/bc-hinh-4-do-ben-deepseek.png)
+
+<div align="center"><em>Hình 4. Tỷ lệ cặp được gợi ý lại ở các phiên bản DeepSeek</em></div>
+
+Ở mọi phiên bản cũ, cột kẻ sọc (tên chỉ một model bịa) thấp nhất, 12–21%. Cột đen (tên cả ba model cùng bịa) cao nhất, 65–68%. Thứ tự này giữ nguyên dù phiên bản cũ cách bản gốc 3 tháng hay gần 2 năm.
+
 
 "Số model bịa" đếm trên ba model chính: Llama 3.1 8B, DeepSeek V4.1 Flash, GLM 5.3.
 
@@ -317,7 +345,7 @@ Tỷ lệ gói có trên PyPI mà LLM gợi ý nhưng ra đời sau mốc dữ l
 | GLM 5.3 | 12/2025 (cộng đồng) | 13.355 | 93 | 0,7% |
 | DeepSeek V4.1 Flash | 03/2026 (cộng đồng) | 7.650 | 34 | 0,4% |
 
-<div align="center"><em>Bảng 8. Gói có trên PyPI ra đời sau mốc dữ liệu của model đã gợi ý</em></div>
+<div align="center"><em>Bảng 12. Gói có trên PyPI ra đời sau mốc dữ liệu của model đã gợi ý</em></div>
 
 Phân loại 693 gói khớp luật ở mục 2.3 cho thấy đa số (79,2%) là dự án có code thật trùng tên. Khoảng 1/5 (20,3%) là gói rỗng hoặc chiếm tên.
 
@@ -347,6 +375,13 @@ Ngoài các kịch bản ở mục 3.3, phần này đo thêm hai kiểu kẻ t�
 
 <div align="center"><em>Bảng 13. Báo nhầm và tỷ lệ né (%), theo thứ tự Llama / DeepSeek / GLM; mức trần 91,9 / 78,4 / 63,2</em></div>
 
+![Tỷ lệ né với kẻ tấn công bắt chước gói thật, chờ 365 ngày, ngân sách 10 USD](docs/images/bc-hinh-5-bo-phat-hien-bat-chuoc.png)
+
+<div align="center"><em>Hình 5. Tỷ lệ né với kẻ tấn công bắt chước gói thật, chờ 365 ngày, ngân sách 10 USD</em></div>
+
+Chỉ có hai bộ phát hiện giữ được: luật mốc giữ được với cả ba model; các bộ "bỏ tuổi gói, thêm mốc" chỉ giữ được với Llama. Các bộ còn lại bị né đến mức trần.
+
+
 Đọc bảng 13:
 
 - **Chỉ thêm đặc trưng mốc thì không đổi gì.** Mẫu dương mô phỏng khi huấn luyện đều là gói mới, nên tuổi gói đã đủ để phân biệt, và mô hình không dùng đến đặc trưng mốc. Kết quả tấn công giống hệt mô hình không có đặc trưng mốc.
@@ -360,7 +395,7 @@ Ngoài các kịch bản ở mục 3.3, phần này đo thêm hai kiểu kẻ t�
   - Đổi lại, luật báo nhầm 6,5% gói thật do Llama gợi ý, so với khoảng 1% của các mô hình học máy.
   - Kiểu đăng ký trước mốc vượt qua luật theo thiết kế. Tỷ lệ kỳ vọng là 6,3% với Llama và 32,9% với DeepSeek. Với DeepSeek, mức này cao vì tên bịa của DeepSeek bền qua các phiên bản (mục 3.4).
 
-Mọi bộ phát hiện ở bảng 13 đều báo nhầm 96,6–99,5% gói thật mới đăng. Mức này chấp nhận được hay không phụ thuộc vào tỷ lệ gói mới trong các gói thật mà LLM gợi ý; theo bảng 8, tỷ lệ đó là 0,4–6,6%.
+Mọi bộ phát hiện ở bảng 13 đều báo nhầm 96,6–99,5% gói thật mới đăng. Mức này chấp nhận được hay không phụ thuộc vào tỷ lệ gói mới trong các gói thật mà LLM gợi ý; theo bảng 12, tỷ lệ đó là 0,4–6,6%.
 
 ## 4. Hạn chế chung
 
