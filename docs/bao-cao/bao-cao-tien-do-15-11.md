@@ -161,11 +161,49 @@ Còn 667 tên được gắn cờ cần duyệt nhưng chưa duyệt:
 
 ## 3. Kết quả thử nghiệm
 
+### Các bộ phát hiện đã thử
+
+Mọi bộ phát hiện ở phần này thuộc tầng 2, tức dành cho tên đã có trên PyPI. Mỗi bộ nhận vào thông tin của một gói và cho ra một điểm "đáng ngờ"; điểm vượt ngưỡng thì cảnh báo.
+
+Đặc trưng (thông tin đưa vào mô hình) chia làm bốn loại:
+- **Đặc trưng từ tên (10 đặc trưng):**
+  - độ dài tên, số từ (tách theo dấu `-`), số chữ số, tỷ lệ nguyên âm, độ dài từ dài nhất;
+  - tên có bắt đầu bằng `py` hoặc chứa `python` không;
+  - với tên nhiều từ: từ đầu tiên có phải tên một gói trên PyPI không, mọi từ có phải tên gói không, bao nhiêu phần các từ là tên gói;
+  - với tên nhiều từ: có gói khác trên PyPI trùng chữ cái khi bỏ dấu phân cách không.
+
+  Các đặc trưng này không dùng việc chính tên đó có trên PyPI hay không, vì ở tầng 2 mọi tên đều có trên PyPI.
+- **Cụm ký tự của tên:** mọi cụm 2–5 ký tự liên tiếp (n-gram ký tự), có trọng số theo độ hiếm (TF-IDF). Ví dụ `vectorcache` cho ra các cụm `ve`, `vec`, `ect`, `cache`…
+- **Metadata (13 đặc trưng):**
+  - nhóm tuổi: tuổi gói, số ngày từ lần phát hành gần nhất, tuổi kho GitHub;
+  - nhóm hoạt động: lượt tải 30 ngày, số bản phát hành, số file, số sao GitHub;
+  - nhóm khai báo: có link GitHub, link kho mã có được PyPI xác minh, số người duy trì, có thuộc tổ chức, độ dài mô tả, có khai báo link dự án.
+
+  Lượt tải và số sao được lấy logarit, để gói có hàng triệu lượt tải không lấn át phần còn lại.
+- **Đặc trưng mốc:** số ngày từ mốc dữ liệu của LLM đã gợi ý gói đến ngày gói được đăng ký. Số dương nghĩa là gói ra đời sau mốc.
+
+Hai thuật toán học máy:
+- **Logistic Regression (LR):** cộng các đặc trưng theo trọng số học được rồi đổi thành điểm từ 0 đến 1. Mô hình tuyến tính, dễ giải thích. Đặc trưng được chuẩn hóa trước khi đưa vào; hai lớp được cân bằng trọng số vì tên bịa và tên thật có số lượng khác nhau.
+- **Gradient Boosting (GB):** ghép 300 cây quyết định nhỏ, mỗi cây tối đa 31 lá, cây sau sửa lỗi của các cây trước (bản HistGradientBoosting của scikit-learn, tốc độ học 0,08). Mô hình học được các điều kiện kết hợp, ví dụ "tuổi dưới 30 ngày và lượt tải dưới 100". Hai lớp cũng được cân bằng trọng số.
+
+| Bộ phát hiện | Đặc trưng đưa vào | Thuật toán | Dùng ở mục |
+|---|---|---|---|
+| Chỉ tên, n-gram | Cụm ký tự của tên | LR | 3.1, 3.3 |
+| Chỉ tên, đặc trưng thủ công | 10 đặc trưng từ tên | GB | 3.1, 3.2 |
+| Chỉ metadata | 13 đặc trưng metadata | GB | 3.2 |
+| Tên và metadata | 10 đặc trưng từ tên và 13 đặc trưng metadata | LR, GB | 3.2, 3.3, 3.6 |
+| Tên và metadata, bỏ tuổi gói | Như trên, bỏ 3 đặc trưng nhóm tuổi | GB | 3.2, 3.6 |
+| Thêm đặc trưng mốc | Tên, metadata và đặc trưng mốc | GB | 3.6 |
+| Bỏ tuổi gói, thêm đặc trưng mốc | Tên, metadata trừ nhóm tuổi, và đặc trưng mốc | GB | 3.6 |
+| Các bộ trên, huấn luyện có mẫu tấn công | Như trên; tập huấn luyện có thêm gói tấn công đã biến đổi | GB | 3.6 |
+| Luật mốc | Chỉ đặc trưng mốc: cảnh báo khi giá trị lớn hơn 30 ngày | Không học | 3.6 |
+
+<div align="center"><em>Bảng 9. Các bộ phát hiện đã thử</em></div>
+
 Thiết lập chung cho các mục 3.1–3.3 và 3.6:
 - **Chia tập:** train/test theo nhóm tên gần giống (mọi biến thể của một tên nằm cùng một phía). Mọi tên xuất hiện trong dữ liệu hỏi lại được đưa vào tập test, để phần tấn công chỉ dùng tên mà mô hình chưa thấy khi huấn luyện.
-- **Ngưỡng:** đặt sao cho mô hình báo nhầm 1% tên thật do LLM gợi ý trong tập test.
+- **Ngưỡng:** với các mô hình học máy, ngưỡng được đặt sao cho mô hình báo nhầm đúng 1% tên thật do LLM gợi ý trong tập test. Luật mốc có ngưỡng cố định, nên tỷ lệ báo nhầm của luật được đo chứ không đặt trước.
 - **Báo nhầm ngoài phân phối:** đo thêm trên 1.483 gói thật mới đăng (phát hành lần đầu 08–10/2026) và 9.433 gói lấy ngẫu nhiên trên PyPI.
-- **Mô hình:** Logistic Regression (LR) và Gradient Boosting (GB).
 
 ### 3.1. Bộ phát hiện chỉ dùng tên không tổng quát sang model chưa thấy
 
@@ -178,7 +216,7 @@ Thiết lập chung cho các mục 3.1–3.3 và 3.6:
 | Báo nhầm trên gói mới đăng | 6,8% | 5,5% |
 | Báo nhầm trên gói ngẫu nhiên | 7,3% | 6,4% |
 
-<div align="center"><em>Bảng 9. Bộ phát hiện chỉ dùng tên: tỷ lệ phát hiện ở mức báo nhầm 1%, và tỷ lệ báo nhầm ngoài phân phối</em></div>
+<div align="center"><em>Bảng 10. Bộ phát hiện chỉ dùng tên: tỷ lệ phát hiện ở mức báo nhầm 1%, và tỷ lệ báo nhầm ngoài phân phối</em></div>
 
 - Trên cùng phân phối, mô hình tốt nhất (AUC 0,81) bắt được 20,1% tên bịa.
 - Khi model đích không có trong dữ liệu huấn luyện, tỷ lệ phát hiện còn 3,4–15,1%.
@@ -200,7 +238,7 @@ Tầng 2 dùng cho tên có trên PyPI.
 | Tên và metadata, GB | 99,6% | 99,1% | 13,3% | 10,8% |
 | Tên và metadata, bỏ các đặc trưng tuổi gói, GB | 49,7% | 43,0% | 13,2% | 3,3% |
 
-<div align="center"><em>Bảng 10. Tầng 2: tỷ lệ phát hiện ở mức báo nhầm 1% trên gói thật do LLM gợi ý</em></div>
+<div align="center"><em>Bảng 11. Tầng 2: tỷ lệ phát hiện ở mức báo nhầm 1% trên gói thật do LLM gợi ý</em></div>
 
 - Mô hình có tuổi gói phát hiện 99,6% mẫu dương mô phỏng, nhưng cũng báo nhầm 99,1% gói thật mới đăng. Tức là mô hình gần như cảnh báo mọi gói mới.
 - Bỏ tuổi gói thì tỷ lệ phát hiện còn 49,7%.
@@ -229,7 +267,7 @@ Tỷ lệ né được tính như sau. Với mỗi câu hỏi đã chọn, lấy
 | 90 ngày | 91,3 / 77,0 / 61,5 | 91,3 / 77,0 / 61,5 | 64,2 / 49,3 / 37,9 | 91,9 / 78,4 / 63,2 |
 | 365 ngày | 91,9 / 78,4 / 63,2 | 91,9 / 78,4 / 63,2 | 91,9 / 78,4 / 63,2 | 91,9 / 78,4 / 63,2 |
 
-<div align="center"><em>Bảng 11. Tỷ lệ né (%) theo thời gian chờ và ngân sách, theo thứ tự Llama / DeepSeek / GLM</em></div>
+<div align="center"><em>Bảng 12. Tỷ lệ né (%) theo thời gian chờ và ngân sách, theo thứ tự Llama / DeepSeek / GLM</em></div>
 
 - Với GB, ngân sách hầu như không thay đổi kết quả, còn thời gian chờ quyết định: chờ 90 ngày đã gần chạm mức trần.
 - Với LR, 1.000 USD đủ để né gần hết mà không cần chờ.
@@ -307,9 +345,9 @@ Ngoài các kịch bản ở mục 3.3, phần này đo thêm hai kiểu kẻ t�
 | Bỏ tuổi gói, thêm đặc trưng mốc, GB, có mẫu tấn công | 2,1 / 0,4 / 0,5 | 3,6 / 4,0 / 0,7 | 10,6 / 76,4 / 58,6 | 26,1 / 78,4 / 63,1 | 6,2 / 30,6 / – |
 | Luật mốc, không học | 6,5 / 0,6 / 0,7 | 0,6 / 2,7 / 0,3 | 0,6 / 2,7 / 0,3 | 0,6 / 2,7 / 0,3 | 6,3 / 32,9 / – |
 
-<div align="center"><em>Bảng 12. Báo nhầm và tỷ lệ né (%), theo thứ tự Llama / DeepSeek / GLM; mức trần 91,9 / 78,4 / 63,2</em></div>
+<div align="center"><em>Bảng 13. Báo nhầm và tỷ lệ né (%), theo thứ tự Llama / DeepSeek / GLM; mức trần 91,9 / 78,4 / 63,2</em></div>
 
-Đọc bảng 12:
+Đọc bảng 13:
 
 - **Chỉ thêm đặc trưng mốc thì không đổi gì.** Mẫu dương mô phỏng khi huấn luyện đều là gói mới, nên tuổi gói đã đủ để phân biệt, và mô hình không dùng đến đặc trưng mốc. Kết quả tấn công giống hệt mô hình không có đặc trưng mốc.
 - **Huấn luyện có mẫu tấn công chỉ chặn được đúng kiểu tấn công đã mô phỏng.** Tỷ lệ né với kiểu tấn công đó giảm còn 0,5–4,0%. Nhưng kẻ tấn công bắt chước gói thật, với 10 USD, lại né đến mức trần. Như vậy mô hình đã học các giá trị đặc trưng của cách làm giả trong mô phỏng, không học tín hiệu tổng quát. Đánh giá huấn luyện có mẫu tấn công bằng chính kiểu tấn công đã dùng để huấn luyện sẽ cho kết quả lạc quan sai.
@@ -322,7 +360,7 @@ Ngoài các kịch bản ở mục 3.3, phần này đo thêm hai kiểu kẻ t�
   - Đổi lại, luật báo nhầm 6,5% gói thật do Llama gợi ý, so với khoảng 1% của các mô hình học máy.
   - Kiểu đăng ký trước mốc vượt qua luật theo thiết kế. Tỷ lệ kỳ vọng là 6,3% với Llama và 32,9% với DeepSeek. Với DeepSeek, mức này cao vì tên bịa của DeepSeek bền qua các phiên bản (mục 3.4).
 
-Mọi bộ phát hiện ở bảng 12 đều báo nhầm 96,6–99,5% gói thật mới đăng. Mức này chấp nhận được hay không phụ thuộc vào tỷ lệ gói mới trong các gói thật mà LLM gợi ý; theo bảng 8, tỷ lệ đó là 0,4–6,6%.
+Mọi bộ phát hiện ở bảng 13 đều báo nhầm 96,6–99,5% gói thật mới đăng. Mức này chấp nhận được hay không phụ thuộc vào tỷ lệ gói mới trong các gói thật mà LLM gợi ý; theo bảng 8, tỷ lệ đó là 0,4–6,6%.
 
 ## 4. Hạn chế chung
 
@@ -350,7 +388,7 @@ Mọi bộ phát hiện ở bảng 12 đều báo nhầm 96,6–99,5% gói thậ
 | 2. So với kẻ tấn công được tự do sửa tên | Chưa làm |
 | 3. Huấn luyện có mẫu tấn công có làm bộ phát hiện bền hơn không | Có kết quả sơ bộ: chỉ bền trước đúng kiểu tấn công đã dùng để huấn luyện (mục 3.6) |
 
-<div align="center"><em>Bảng 13. Trạng thái các câu hỏi nghiên cứu</em></div>
+<div align="center"><em>Bảng 14. Trạng thái các câu hỏi nghiên cứu</em></div>
 
 Việc tiếp theo dự kiến:
 1. Duyệt 667 nhãn còn gắn cờ (mục 2.4). Nhờ người duyệt thứ hai cho một mẫu ngẫu nhiên của 693 gói ra đời sau mốc, rồi tính độ đồng thuận.
