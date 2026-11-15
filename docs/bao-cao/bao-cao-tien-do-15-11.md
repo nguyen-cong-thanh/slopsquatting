@@ -21,19 +21,30 @@ Mọi số liệu dưới đây lấy từ dữ liệu đã thu, với snapshot 
 
 ### 1.1. Cách thu
 
-- **Câu hỏi:** 18.033 câu hỏi Python không trùng nhau của Spracklen và cộng sự (2025).
-- **Ba tác vụ cho mỗi câu hỏi**, theo cách làm của Spracklen và cộng sự (2025):
-  - sinh code (temperature 0,7);
-  - hỏi "cần gói nào để chạy đoạn code này" (temperature 0,01, tối đa 64 token);
-  - hỏi "gói nào hữu ích cho bài toán này" (temperature 0,01, tối đa 64 token).
-- **Trích tên gói:** lấy từ lệnh `pip install` và từ các câu trả lời dạng danh sách. Tên được chuẩn hóa và kiểm tra khả năng đăng ký theo đúng mã nguồn của PyPI. Tên module thư viện chuẩn (`os`, `json`…) được tách thành nhãn riêng và không tính vào tỷ lệ tên bịa.
-- **Metadata của gói có trên PyPI:**
-  - PyPI JSON: bản phát hành, link mã nguồn, người duy trì;
-  - thông tin xác minh nguồn của PyPI (provenance);
-  - lượt tải 30 ngày từ ClickPy, không tính các công cụ sao chép toàn bộ PyPI;
-  - lịch sử tải lên từ ClickPy;
-  - sao GitHub.
-- **Ba model:** Llama 3.1 8B Instruct (qua DeepInfra), DeepSeek V4.1 Flash bản 1017 (qua DeepInfra, tắt chế độ suy nghĩ), GLM 5.3 (máy nội bộ, tắt chế độ suy nghĩ).
+Công đoạn thu thập gồm tám việc, làm theo thứ tự:
+
+1. **Chuẩn bị câu hỏi:** dùng 18.033 câu hỏi lập trình Python không trùng nhau của Spracklen và cộng sự (2025).
+2. **Hỏi LLM:** gửi từng câu hỏi cho ba model: Llama 3.1 8B Instruct, DeepSeek V4.1 Flash bản 1017 và GLM 5.3. Mỗi câu hỏi theo ba cách, như Spracklen và cộng sự (2025):
+   - nhờ viết code (temperature 0,7);
+   - hỏi "cần gói nào để chạy đoạn code này" (temperature 0,01, tối đa 64 token);
+   - hỏi "gói nào hữu ích cho bài toán này" (temperature 0,01, tối đa 64 token).
+
+   Chế độ suy nghĩ của DeepSeek và GLM được tắt. Llama và DeepSeek chạy qua dịch vụ DeepInfra. GLM chạy trên máy nội bộ, sau đó kết quả được gộp vào cùng một cơ sở dữ liệu.
+3. **Lấy tên gói từ câu trả lời:** tìm trong lệnh `pip install` và trong các câu trả lời dạng danh sách.
+   - Mỗi tên được đưa về một dạng chuẩn theo đúng quy tắc của PyPI; ví dụ `Vector_Cache` và `vector-cache` là một tên.
+   - Tên module thư viện chuẩn (`os`, `json`…) được tách thành nhãn riêng và không tính vào tỷ lệ tên bịa.
+4. **Tra PyPI:** tải danh sách 937.845 project đang có trên PyPI (ngày 12/11/2026) và xem mỗi tên đã có hay chưa. Với tên chưa có, kiểm tra tên đó còn đăng ký được không, theo đúng luật trong mã nguồn của PyPI.
+5. **Lấy metadata của gói có trên PyPI** (32.954 gói), từ năm nguồn:
+   - PyPI: các bản phát hành, link mã nguồn, người duy trì;
+   - thông tin xác minh nguồn của PyPI (provenance);
+   - lượt tải 30 ngày từ ClickPy, không tính các công cụ sao chép toàn bộ PyPI;
+   - lịch sử tải lên từ ClickPy, kể cả các bản đã bị xóa;
+   - số sao và ngày tạo kho mã trên GitHub.
+6. **Gắn nhãn:** một bộ luật xếp mỗi tên vào một nhóm: tên thật, tên bịa chưa có trên PyPI, tên bịa đã bị đăng ký, gói giữ chỗ, gói độc hại đã biết. Các trường hợp luật không đủ bằng chứng (442 gói) được kiểm chứng thủ công (mục 2).
+7. **Hỏi lại:** với mỗi model, chọn 250 tên bịa và hỏi lại câu gốc 10 lần, để đo mức lặp lại của tên bịa (mục 1.3).
+8. **Hỏi các phiên bản model khác:** hỏi cùng các câu đó ở hai phiên bản Llama và bốn phiên bản DeepSeek, để đo độ bền của tên bịa qua các phiên bản (mục 1.3 và 3.4).
+
+Ngoài ra, hai tập gói đối chứng được lấy từ PyPI để đo tỷ lệ báo nhầm của bộ phát hiện: 3.000 gói mới đăng (phát hành lần đầu 08–10/2026) và 10.000 gói chọn ngẫu nhiên.
 
 ### 1.2. Số liệu theo model
 
