@@ -40,9 +40,9 @@ Công đoạn thu thập gồm tám việc, làm theo thứ tự:
    - lượt tải 30 ngày từ ClickPy, không tính các công cụ sao chép toàn bộ PyPI;
    - lịch sử tải lên từ ClickPy, kể cả các bản đã bị xóa;
    - số sao và ngày tạo kho mã trên GitHub.
-6. **Gắn nhãn:** một bộ luật xếp mỗi tên vào một nhóm: tên thật, tên bịa chưa có trên PyPI, tên bịa đã bị đăng ký, gói giữ chỗ, gói độc hại đã biết. Các trường hợp luật không đủ bằng chứng (442 gói) được kiểm chứng thủ công (mục 2).
-7. **Hỏi lại:** với mỗi model, chọn 250 tên bịa và hỏi lại câu gốc 10 lần, để đo mức lặp lại của tên bịa (mục 1.3).
-8. **Hỏi các phiên bản model khác:** hỏi cùng các câu đó ở hai phiên bản Llama và bốn phiên bản DeepSeek, để đo độ bền của tên bịa qua các phiên bản (mục 1.3 và 3.4).
+6. **Gắn nhãn:** một bộ luật xếp mỗi tên vào một nhóm: tên thật, tên bịa chưa có trên PyPI, tên bịa đã bị đăng ký, gói giữ chỗ, gói độc hại đã biết. Các trường hợp luật không đủ bằng chứng (442 gói) được kiểm chứng thủ công (xem mục "Luật mốc dữ liệu và kiểm chứng thủ công").
+7. **Hỏi lại:** với mỗi model, chọn 250 tên bịa và hỏi lại câu gốc 10 lần, để đo mức lặp lại của tên bịa (xem mục "Dữ liệu hỏi lại").
+8. **Hỏi các phiên bản model khác:** hỏi cùng các câu đó ở hai phiên bản Llama và bốn phiên bản DeepSeek, để đo độ bền của tên bịa qua các phiên bản (xem mục "Dữ liệu hỏi lại" và "Độ bền của tên bịa qua các phiên bản").
 
 Ngoài ra, hai tập gói đối chứng được lấy từ PyPI để đo tỷ lệ báo nhầm của bộ phát hiện: 3.000 gói mới đăng (phát hành lần đầu 08–10/2026) và 10.000 gói chọn ngẫu nhiên.
 
@@ -76,7 +76,7 @@ GLM bịa ít trên mỗi lượt gợi ý (5,0%), nhưng mỗi câu trả lời
 Các câu hỏi được xếp theo một thứ tự ngẫu nhiên cố định. Với cả ba model, số tên bịa mới vẫn tăng đều đến hết 18.033 câu hỏi, chưa chững lại. Nghĩa là hỏi thêm câu hỏi thì vẫn còn ra tên bịa mới.
 
 
-Tên bịa ở đây gồm tên chưa có trên PyPI và tên bịa đã bị người khác đăng ký (mục 2). Để đối chiếu, Spracklen và cộng sự (2025) báo cáo tỷ lệ trung bình 21,7% với LLM mã nguồn mở và 5,2% với LLM thương mại, cũng tính theo lượt gợi ý. Hai cách tính có thể khác nhau ở chỗ xử lý tên thư viện chuẩn.
+Tên bịa ở đây gồm tên chưa có trên PyPI và tên bịa đã bị người khác đăng ký (xem mục "Các nhãn"). Để đối chiếu, Spracklen và cộng sự (2025) báo cáo tỷ lệ trung bình 21,7% với LLM mã nguồn mở và 5,2% với LLM thương mại, cũng tính theo lượt gợi ý. Hai cách tính có thể khác nhau ở chỗ xử lý tên thư viện chuẩn.
 
 Số tên bịa trùng giữa các model:
 
@@ -99,7 +99,7 @@ Mọi lượt gọi model đều hoàn tất, không còn câu nào lỗi.
 ### 1.4. Cơ sở dữ liệu
 
 Toàn bộ dữ liệu nằm trong một file SQLite, `data/slop.sqlite`, dung lượng 4,2 GB.
-- File không đưa lên git, vì có danh sách tên bịa chưa ai đăng ký (mục 5).
+- File không đưa lên git, vì có danh sách tên bịa chưa ai đăng ký; công bố danh sách này cần làm theo quy trình công bố có trách nhiệm.
 - Có thể xem bằng notebook `notebooks/phan-tich-du-lieu.ipynb`, hoặc phần mềm DB Browser for SQLite.
 
 Mỗi bước của quy trình thu thập ghi kết quả vào một nhóm bảng; bước sau đọc kết quả của bước trước:
@@ -182,7 +182,7 @@ Kiểm tra mẫu nhãn và dữ liệu đã phát hiện năm lỗi. Mỗi lỗi
 | Luật gói giữ chỗ bắt cả gói thật có chữ "deprecated" trong README | Trên mẫu 40 tên, khoảng 2 tên đúng là gói giữ chỗ (peft, natsort, amqp bị bắt nhầm) | Chỉ so mẫu trên phần tóm tắt, và trên phần mô tả khi mô tả không quá 400 ký tự | Số tên khớp luật giảm từ 996 xuống 156; 830 tên trở về nhãn tên thật |
 | Ngày phát hành đầu sai với gói đã xóa bản cũ | PyPI chỉ còn các bản chưa bị xóa: PySimpleGUI có từ 07/2018 nhưng hiện như phát hành lần đầu 03/2025 | Lấy lần tải lên sớm nhất từ lịch sử của ClickPy, kể cả bản đã xóa | 632 tên lệch quá 30 ngày, trong đó 378 tên lệch quá 1 năm |
 | Từ nối bị đọc thành tên gói | "None, however, …" cho ra tên `however` | Bỏ các từ nối khỏi danh sách tên | 33 lượt gợi ý bị loại |
-| Tên bịa đã bị đăng ký lâu hoặc đã có nhiều lượt tải bị gắn là tên thật | Luật cũ chỉ bắt gói dưới 180 ngày tuổi và dưới 1.000 lượt tải/tháng | Thêm luật dựa trên mốc dữ liệu của model (mục 2.3) | 141 gói được gắn nhãn tên bịa đã bị đăng ký, 3 gói được gắn nhãn gói giữ chỗ |
+| Tên bịa đã bị đăng ký lâu hoặc đã có nhiều lượt tải bị gắn là tên thật | Luật cũ chỉ bắt gói dưới 180 ngày tuổi và dưới 1.000 lượt tải/tháng | Thêm luật dựa trên mốc dữ liệu của model (xem mục "Luật mốc dữ liệu và kiểm chứng thủ công") | 141 gói được gắn nhãn tên bịa đã bị đăng ký, 3 gói được gắn nhãn gói giữ chỗ |
 
 <div align="center"><em>Bảng 6. Lỗi nhãn đã phát hiện và cách sửa</em></div>
 
@@ -266,24 +266,26 @@ Hai thuật toán học máy:
 
 | Bộ phát hiện | Đặc trưng đưa vào | Thuật toán | Dùng ở mục |
 |---|---|---|---|
-| Chỉ tên, n-gram | Cụm ký tự của tên | LR | 3.1, 3.3 |
-| Chỉ tên, đặc trưng thủ công | 10 đặc trưng từ tên | GB | 3.1, 3.2 |
-| Chỉ metadata | 13 đặc trưng metadata | GB | 3.2 |
-| Tên và metadata | 10 đặc trưng từ tên và 13 đặc trưng metadata | LR, GB | 3.2, 3.3, 3.6 |
-| Tên và metadata, bỏ tuổi gói | Như trên, bỏ 3 đặc trưng nhóm tuổi | GB | 3.2, 3.6 |
-| Thêm đặc trưng mốc | Tên, metadata và đặc trưng mốc | GB | 3.6 |
-| Bỏ tuổi gói, thêm đặc trưng mốc | Tên, metadata trừ nhóm tuổi, và đặc trưng mốc | GB | 3.6 |
-| Các bộ trên, huấn luyện có mẫu tấn công | Như trên; tập huấn luyện có thêm gói tấn công đã biến đổi | GB | 3.6 |
-| Luật mốc | Chỉ đặc trưng mốc: cảnh báo khi giá trị lớn hơn 30 ngày | Không học | 3.6 |
+| Chỉ tên, n-gram | Cụm ký tự của tên | LR | Bộ phát hiện chỉ dùng tên; Tấn công đăng ký rồi chờ |
+| Chỉ tên, đặc trưng thủ công | 10 đặc trưng từ tên | GB | Bộ phát hiện chỉ dùng tên; Tầng 2 dùng metadata |
+| Chỉ metadata | 13 đặc trưng metadata | GB | Tầng 2 dùng metadata |
+| Tên và metadata | 10 đặc trưng từ tên và 13 đặc trưng metadata | LR, GB | Tầng 2 dùng metadata; Tấn công đăng ký rồi chờ; Đặc trưng mốc, huấn luyện có mẫu tấn công và luật mốc |
+| Tên và metadata, bỏ tuổi gói | Như trên, bỏ 3 đặc trưng nhóm tuổi | GB | Tầng 2 dùng metadata; Đặc trưng mốc, huấn luyện có mẫu tấn công và luật mốc |
+| Thêm đặc trưng mốc | Tên, metadata và đặc trưng mốc | GB | Đặc trưng mốc, huấn luyện có mẫu tấn công và luật mốc |
+| Bỏ tuổi gói, thêm đặc trưng mốc | Tên, metadata trừ nhóm tuổi, và đặc trưng mốc | GB | Đặc trưng mốc, huấn luyện có mẫu tấn công và luật mốc |
+| Các bộ trên, huấn luyện có mẫu tấn công | Như trên; tập huấn luyện có thêm gói tấn công đã biến đổi | GB | Đặc trưng mốc, huấn luyện có mẫu tấn công và luật mốc |
+| Luật mốc | Chỉ đặc trưng mốc: cảnh báo khi giá trị lớn hơn 30 ngày | Không học | Đặc trưng mốc, huấn luyện có mẫu tấn công và luật mốc |
 
 <div align="center"><em>Bảng 9. Các bộ phát hiện đã thử</em></div>
 
-Thiết lập chung cho các mục 3.1–3.3 và 3.6:
+Thiết lập chung cho các thử nghiệm bộ phát hiện trong phần này:
 - **Chia tập:** train/test theo nhóm tên gần giống (mọi biến thể của một tên nằm cùng một phía). Mọi tên xuất hiện trong dữ liệu hỏi lại được đưa vào tập test, để phần tấn công chỉ dùng tên mà mô hình chưa thấy khi huấn luyện.
 - **Ngưỡng:** với các mô hình học máy, ngưỡng được đặt sao cho mô hình báo nhầm đúng 1% tên thật do LLM gợi ý trong tập test. Luật mốc có ngưỡng cố định, nên tỷ lệ báo nhầm của luật được đo chứ không đặt trước.
 - **Báo nhầm ngoài phân phối:** đo thêm trên 1.483 gói thật mới đăng (phát hành lần đầu 08–10/2026) và 9.433 gói lấy ngẫu nhiên trên PyPI.
 
-### 3.1. Bộ phát hiện chỉ dùng tên không tổng quát sang model chưa thấy
+### 3.1. Bộ phát hiện chỉ dùng tên
+
+Kết luận: bộ phát hiện chỉ dùng tên bắt được ít tên bịa, và không tổng quát sang model chưa có trong dữ liệu huấn luyện.
 
 | Cách kiểm thử | N-gram ký tự và LR | Đặc trưng thủ công và GB |
 |---|---|---|
@@ -301,12 +303,14 @@ Thiết lập chung cho các mục 3.1–3.3 và 3.6:
 - Báo nhầm trên gói ngoài phân phối là 5,5–7,3%, cao hơn mức 1% đặt cho tên thật do LLM gợi ý.
 - Tên do cả ba model cùng bịa khó phát hiện hơn: mô hình GB bắt được 3,6% nhóm này, so với 9,5% với tên chỉ một model bịa.
 
-### 3.2. Tầng 2 phân biệt chủ yếu nhờ tuổi gói
+### 3.2. Tầng 2 dùng metadata
+
+Kết luận: tầng 2 phân biệt chủ yếu nhờ tuổi gói.
 
 Tầng 2 dùng cho tên có trên PyPI.
 - **Mẫu âm:** gói thật do LLM gợi ý, với metadata thật.
 - **Mẫu dương** là mô phỏng: lấy tên bịa chưa có trên PyPI, gán metadata của một gói thật mới đăng chọn ngẫu nhiên. Giả định là kẻ tấn công vừa đăng ký tên đó.
-- **Kiểm tra thêm** trên 120 tên bịa đã bị đăng ký thật (nhãn ở mục 2) có metadata.
+- **Kiểm tra thêm** trên 120 tên bịa đã bị đăng ký thật (nhãn ở mục "Các nhãn") có metadata.
 
 | Mô hình | Phát hiện | Báo nhầm trên gói mới đăng | Báo nhầm trên gói ngẫu nhiên | Phát hiện trên 120 tên bịa đã bị đăng ký thật |
 |---|---|---|---|---|
@@ -320,9 +324,11 @@ Tầng 2 dùng cho tên có trên PyPI.
 
 - Mô hình có tuổi gói phát hiện 99,6% mẫu dương mô phỏng, nhưng cũng báo nhầm 99,1% gói thật mới đăng. Tức là mô hình gần như cảnh báo mọi gói mới.
 - Bỏ tuổi gói thì tỷ lệ phát hiện còn 49,7%.
-- Trên 120 tên bịa đã bị đăng ký thật, mô hình chỉ bắt được 10,8%. Trong số này, 80 gói (66,7%) đã đăng ký hơn một năm (trung vị 575 ngày). Lưu ý là một phần nhãn của nhóm này được gắn bằng luật dựa trên tuổi hoặc mốc dữ liệu (mục 2.3).
+- Trên 120 tên bịa đã bị đăng ký thật, mô hình chỉ bắt được 10,8%. Trong số này, 80 gói (66,7%) đã đăng ký hơn một năm (trung vị 575 ngày). Lưu ý là một phần nhãn của nhóm này được gắn bằng luật dựa trên tuổi hoặc mốc dữ liệu (xem mục "Luật mốc dữ liệu và kiểm chứng thủ công").
 
 ### 3.3. Tấn công đăng ký rồi chờ
+
+Kết luận: kẻ tấn công đăng ký tên rồi chờ đủ lâu thì né được tầng 2.
 
 Mô hình tấn công:
 - Kẻ tấn công đăng ký các tên bịa xuất hiện trong dữ liệu hỏi lại, chỉ những tên đăng ký được theo luật của PyPI: 5.667 trên 7.024 tên.
@@ -358,7 +364,9 @@ Tỷ lệ né được tính như sau. Với mỗi câu hỏi đã chọn, lấy
 - Với LR, 1.000 USD đủ để né gần hết mà không cần chờ.
 - Bộ phát hiện chỉ dùng tên bị né gần bằng mức trần: 88,0 / 73,9 / 61,0 với mô hình n-gram và LR.
 
-### 3.4. Tên bịa chỉ một model sinh ra ít bền qua các phiên bản
+### 3.4. Độ bền của tên bịa qua các phiên bản
+
+Kết luận: tên bịa chỉ một model sinh ra phần lớn không còn được gợi ý ở các phiên bản khác; tên do nhiều model cùng bịa thì bền hơn.
 
 Phương pháp:
 - Lấy các cặp (tên bịa, câu hỏi) đã chọn của model gốc.
@@ -399,7 +407,9 @@ Hạn chế:
 - Nhóm Llama có tên do 3 model bịa chỉ có 7 cặp.
 - Llama 3.3 khác Llama 3.1 cả về phiên bản lẫn kích thước (70B so với 8B), nên không tách được hai yếu tố này.
 
-### 3.5. Một phần gói có thật do LLM gợi ý ra đời sau mốc dữ liệu
+### 3.5. Gói ra đời sau mốc dữ liệu
+
+Kết luận: một phần gói có thật do LLM gợi ý ra đời sau mốc dữ liệu của chính model đó.
 
 Tỷ lệ gói có trên PyPI mà LLM gợi ý nhưng ra đời sau mốc dữ liệu của chính model đó:
 
@@ -411,21 +421,21 @@ Tỷ lệ gói có trên PyPI mà LLM gợi ý nhưng ra đời sau mốc dữ l
 
 <div align="center"><em>Bảng 14. Gói có trên PyPI ra đời sau mốc dữ liệu của model đã gợi ý</em></div>
 
-Phân loại 693 gói khớp luật ở mục 2.3 cho thấy đa số (79,2%) là dự án có code thật trùng tên. Khoảng 1/5 (20,3%) là gói rỗng hoặc chiếm tên.
+Phân loại 693 gói khớp luật ở mục "Luật mốc dữ liệu và kiểm chứng thủ công" cho thấy đa số (79,2%) là dự án có code thật trùng tên. Khoảng 1/5 (20,3%) là gói rỗng hoặc chiếm tên.
 
 Tỷ lệ của Llama cao hơn hai model kia một bậc. Một nguyên nhân có thể là khoảng cách: mốc của Llama đã cách thời điểm thu dữ liệu gần 3 năm, đủ lâu để nhiều tên bịa được người khác đăng ký. Dữ liệu hiện có chưa kiểm chứng được giả thuyết này.
 
-### 3.6. Đặc trưng mốc dữ liệu, huấn luyện có mẫu tấn công và luật mốc
+### 3.6. Đặc trưng mốc, huấn luyện có mẫu tấn công và luật mốc
 
-Phần này thử ba cách khắc phục điểm yếu ở mục 3.2–3.3.
+Phần này thử ba cách khắc phục điểm yếu nêu ở hai mục "Tầng 2 dùng metadata" và "Tấn công đăng ký rồi chờ".
 
 1. **Đặc trưng mới:** số ngày từ mốc dữ liệu của model đã gợi ý gói đến ngày gói được đăng ký. Kẻ tấn công không thay đổi được đặc trưng này bằng cách chờ. Mỗi dòng dữ liệu là một cặp (gói, model gợi ý).
 2. **Huấn luyện có mẫu tấn công:** mỗi mẫu dương trong tập huấn luyện được sinh thêm 3 bản biến đổi ngẫu nhiên: thời gian chờ, các việc làm giả miễn phí, và ngân sách 0–1.000 USD.
 3. **Luật không học:** cảnh báo khi gói được đăng ký sau mốc của model đã gợi ý nó hơn 30 ngày.
 
-Ngoài các kịch bản ở mục 3.3, phần này đo thêm hai kiểu kẻ tấn công:
+Ngoài các kịch bản ở mục "Tấn công đăng ký rồi chờ", phần này đo thêm hai kiểu kẻ tấn công:
 - **Bắt chước gói thật:** chép toàn bộ metadata làm giả được từ một gói thật do LLM gợi ý, và mua đủ số sao và lượt tải của gói đó trong giới hạn ngân sách. Kẻ tấn công này nằm ngoài các kiểu làm giả đã dùng khi huấn luyện.
-- **Đăng ký trước mốc:** đăng ký tên 30 ngày trước mốc của model đích. Muốn vậy, kẻ tấn công phải lấy tên từ một phiên bản model cũ hơn, và tên đó phải còn được model đích gợi ý. Tỷ lệ kỳ vọng bằng tỷ lệ né nhân với tỷ lệ tên còn được gợi ý đo ở mục 3.4: 6,8% với Llama, 41,9% với DeepSeek, chưa đo với GLM.
+- **Đăng ký trước mốc:** đăng ký tên 30 ngày trước mốc của model đích. Muốn vậy, kẻ tấn công phải lấy tên từ một phiên bản model cũ hơn, và tên đó phải còn được model đích gợi ý. Tỷ lệ kỳ vọng bằng tỷ lệ né nhân với tỷ lệ tên còn được gợi ý đo ở mục "Độ bền của tên bịa qua các phiên bản": 6,8% với Llama, 41,9% với DeepSeek, chưa đo với GLM.
 
 | Bộ phát hiện | Báo nhầm trên gói thật do LLM gợi ý | Đăng ký mới, chờ 365 ngày, 0 USD | Bắt chước gói thật, chờ 365 ngày, 10 USD | Bắt chước gói thật, chờ 365 ngày, 1.000 USD | Đăng ký trước mốc, kỳ vọng |
 |---|---|---|---|---|---|
@@ -457,7 +467,7 @@ Chỉ có hai bộ phát hiện giữ được: luật mốc giữ được vớ
 - **Luật mốc không bị ảnh hưởng bởi thời gian chờ hay ngân sách**, vì nó không dùng metadata làm giả được.
   - Tỷ lệ né còn lại 0,3–2,7% đến từ 33 trên 2.975 gói trong tập mẫu "gói mới đăng" mà thực ra đã cũ. Bảng lịch sử của ClickPy thiếu bản phát hành cũ của các gói này; đây là lỗi của dữ liệu mẫu.
   - Đổi lại, luật báo nhầm 6,5% gói thật do Llama gợi ý, so với khoảng 1% của các mô hình học máy.
-  - Kiểu đăng ký trước mốc vượt qua luật theo thiết kế. Tỷ lệ kỳ vọng là 6,3% với Llama và 32,9% với DeepSeek. Với DeepSeek, mức này cao vì tên bịa của DeepSeek bền qua các phiên bản (mục 3.4).
+  - Kiểu đăng ký trước mốc vượt qua luật theo thiết kế. Tỷ lệ kỳ vọng là 6,3% với Llama và 32,9% với DeepSeek. Với DeepSeek, mức này cao vì tên bịa của DeepSeek bền qua các phiên bản (xem mục "Độ bền của tên bịa qua các phiên bản").
 
 Mọi bộ phát hiện ở bảng 15 đều báo nhầm 96,6–99,5% gói thật mới đăng. Mức này chấp nhận được hay không phụ thuộc vào tỷ lệ gói mới trong các gói thật mà LLM gợi ý; theo bảng 14, tỷ lệ đó là 0,4–6,6%.
 
@@ -470,11 +480,11 @@ Mọi bộ phát hiện ở bảng 15 đều báo nhầm 96,6–99,5% gói thậ
   - giá lượt tải dựa trên thử nghiệm với npm và một giả định về giá máy chủ;
   - chưa tính việc GitHub xóa tài khoản và kho mã dùng sao giả (He và cộng sự, 2024: 91% kho có chiến dịch sao giả bị xóa).
 - **Mốc dữ liệu** của DeepSeek và GLM là thông tin cộng đồng, chưa kiểm chứng. Cách ước lượng mốc từ ngày phát hành các gói được gợi ý đã được thử, nhưng không tái lập được mốc chính thức của Llama, nên không dùng.
-- **Kiểm chứng thủ công** 442 gói ở mục 2.3 do một người thực hiện, chưa có người duyệt thứ hai và chưa đo độ đồng thuận.
+- **Kiểm chứng thủ công** 442 gói ở mục "Luật mốc dữ liệu và kiểm chứng thủ công" do một người thực hiện, chưa có người duyệt thứ hai và chưa đo độ đồng thuận.
 - **Giới hạn 64 token** ở hai tác vụ liệt kê gói làm câu trả lời bị cắt (với GLM là 10.469 câu ở một tác vụ). Tên dở dang ở cuối đã được bỏ, nhưng tỷ lệ tên bịa của GLM có thể bị đánh giá thấp.
 - **Bộ câu hỏi** của Spracklen và cộng sự đã công khai từ 2024, nên các model mới có thể đã học bộ này.
 - **Một snapshot:** toàn bộ dữ liệu dùng một snapshot PyPI (12/11/2026).
-- **Phần hỏi lại của GLM** chạy trên hạ tầng khác với phần thu gốc (mục 1.3).
+- **Phần hỏi lại của GLM** chạy trên hạ tầng khác với phần thu gốc (xem mục "Dữ liệu hỏi lại").
 - **Chưa làm:** mốc so sánh "kẻ tấn công được tự do sửa tên" (Faster-GCG, câu hỏi nghiên cứu 2) và mô hình mạng nơ-ron đọc chuỗi ký tự.
 
 ## 5. Việc tiếp theo và các điểm cần thầy cho ý kiến
@@ -483,23 +493,23 @@ Mọi bộ phát hiện ở bảng 15 đều báo nhầm 96,6–99,5% gói thậ
 
 | Câu hỏi nghiên cứu | Trạng thái |
 |---|---|
-| 1. Bộ phát hiện dễ bị né đến mức nào trong điều kiện thực tế | Có kết quả sơ bộ: mục 3.3 và 3.6 |
+| 1. Bộ phát hiện dễ bị né đến mức nào trong điều kiện thực tế | Có kết quả sơ bộ: mục "Tấn công đăng ký rồi chờ" và "Đặc trưng mốc, huấn luyện có mẫu tấn công và luật mốc" |
 | 2. So với kẻ tấn công được tự do sửa tên | Chưa làm |
-| 3. Huấn luyện có mẫu tấn công có làm bộ phát hiện bền hơn không | Có kết quả sơ bộ: chỉ bền trước đúng kiểu tấn công đã dùng để huấn luyện (mục 3.6) |
+| 3. Huấn luyện có mẫu tấn công có làm bộ phát hiện bền hơn không | Có kết quả sơ bộ: chỉ bền trước đúng kiểu tấn công đã dùng để huấn luyện (mục "Đặc trưng mốc, huấn luyện có mẫu tấn công và luật mốc") |
 
 <div align="center"><em>Bảng 16. Trạng thái các câu hỏi nghiên cứu</em></div>
 
 Việc tiếp theo dự kiến:
-1. Duyệt 667 nhãn còn gắn cờ (mục 2.4). Nhờ người duyệt thứ hai cho một mẫu ngẫu nhiên của 693 gói ra đời sau mốc, rồi tính độ đồng thuận.
+1. Duyệt 667 nhãn còn gắn cờ (xem mục "Phần nhãn chưa duyệt"). Nhờ người duyệt thứ hai cho một mẫu ngẫu nhiên của 693 gói ra đời sau mốc, rồi tính độ đồng thuận.
 2. Đo độ bền qua các phiên bản cho họ GLM (GLM 4.6, 4.7, 5.2 trên DeepInfra).
 3. Làm mốc so sánh Faster-GCG và mô hình mạng nơ-ron đọc chuỗi ký tự (câu hỏi nghiên cứu 2).
-4. Tìm cách chặn kiểu đăng ký trước mốc. Một hướng là theo dõi các tên bịa do nhiều model hoặc nhiều phiên bản cùng sinh ra, vì mục 3.4 cho thấy nhóm này bền nhất.
+4. Tìm cách chặn kiểu đăng ký trước mốc. Một hướng là theo dõi các tên bịa do nhiều model hoặc nhiều phiên bản cùng sinh ra, vì mục "Độ bền của tên bịa qua các phiên bản" cho thấy nhóm này bền nhất.
 
 Các điểm cần thầy cho ý kiến:
 1. Dùng mốc dữ liệu theo thông tin cộng đồng cho DeepSeek và GLM, có ghi rõ trong báo cáo, có chấp nhận được không? Hay chỉ dùng các model có mốc chính thức (họ Llama) cho các kết luận dựa trên mốc?
 2. Kết quả hiện tại cho thấy một luật đơn giản (luật mốc) bền hơn các mô hình học máy trước kẻ tấn công có tiền và thời gian. Đề tài có nên đổi trọng tâm từ "làm mô hình học máy bền hơn" sang "kết hợp luật mốc với mô hình", và đánh giá đánh đổi giữa báo nhầm và độ bền?
 3. Mức báo nhầm nào là chấp nhận được cho bối cảnh sử dụng: 1% như hiện tại, hay chấp nhận mức của luật mốc (6,5% với Llama)?
-4. Có báo 141 gói rỗng hoặc chiếm tên ở mục 2.3 cho đội an ninh của PyPI trước khi công bố kết quả không?
+4. Có báo 141 gói rỗng hoặc chiếm tên ở mục "Luật mốc dữ liệu và kiểm chứng thủ công" cho đội an ninh của PyPI trước khi công bố kết quả không?
 
 ## Tài liệu tham khảo
 
