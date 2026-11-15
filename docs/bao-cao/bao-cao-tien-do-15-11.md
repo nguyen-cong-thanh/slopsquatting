@@ -51,14 +51,14 @@ Số liệu tính trên lần hỏi gốc của mỗi câu hỏi; lượt gợi 
 
 <div align="center"><em>Bảng 1. Số liệu thu thập theo model, lần hỏi gốc</em></div>
 
-![Tỷ lệ tên bịa theo model, lần hỏi gốc](docs/images/bc-hinh-1-ty-le-ten-bia.png)
+![Tỷ lệ tên bịa theo model, lần hỏi gốc](../images/bc-hinh-1-ty-le-ten-bia.png)
 
 <div align="center"><em>Hình 1. Tỷ lệ tên bịa theo model, lần hỏi gốc</em></div>
 
 GLM bịa ít trên mỗi lượt gợi ý (5,0%), nhưng mỗi câu trả lời liệt kê nhiều tên (17,9 tên), nên 35,3% câu hỏi vẫn có ít nhất một tên bịa.
 
 
-![Số tên bịa không trùng tích lũy theo số câu hỏi](docs/images/bc-hinh-2-tang-truong-ten-bia.png)
+![Số tên bịa không trùng tích lũy theo số câu hỏi](../images/bc-hinh-2-tang-truong-ten-bia.png)
 
 <div align="center"><em>Hình 2. Số tên bịa không trùng tích lũy theo số câu hỏi</em></div>
 
@@ -283,7 +283,7 @@ Tỷ lệ né được tính như sau. Với mỗi câu hỏi đã chọn, lấy
 
 <div align="center"><em>Bảng 10. Tỷ lệ né (%) theo thời gian chờ và ngân sách, theo thứ tự Llama / DeepSeek / GLM</em></div>
 
-![Tỷ lệ né theo thời gian chờ, bộ phát hiện tên và metadata dùng GB, 0 USD](docs/images/bc-hinh-3-tan-cong-cho.png)
+![Tỷ lệ né theo thời gian chờ, bộ phát hiện tên và metadata dùng GB, 0 USD](../images/bc-hinh-3-tan-cong-cho.png)
 
 <div align="center"><em>Hình 3. Tỷ lệ né theo thời gian chờ, bộ phát hiện tên và metadata dùng GB, 0 USD</em></div>
 
@@ -317,7 +317,7 @@ Phương pháp:
 
 <div align="center"><em>Bảng 11. Tỷ lệ cặp được gợi ý lại ít nhất một lần trong 10 lần hỏi, theo phiên bản và theo số model chính cùng bịa ra tên</em></div>
 
-![Tỷ lệ cặp được gợi ý lại ở các phiên bản DeepSeek](docs/images/bc-hinh-4-do-ben-deepseek.png)
+![Tỷ lệ cặp được gợi ý lại ở các phiên bản DeepSeek](../images/bc-hinh-4-do-ben-deepseek.png)
 
 <div align="center"><em>Hình 4. Tỷ lệ cặp được gợi ý lại ở các phiên bản DeepSeek</em></div>
 
@@ -375,7 +375,7 @@ Ngoài các kịch bản ở mục 3.3, phần này đo thêm hai kiểu kẻ t�
 
 <div align="center"><em>Bảng 13. Báo nhầm và tỷ lệ né (%), theo thứ tự Llama / DeepSeek / GLM; mức trần 91,9 / 78,4 / 63,2</em></div>
 
-![Tỷ lệ né với kẻ tấn công bắt chước gói thật, chờ 365 ngày, ngân sách 10 USD](docs/images/bc-hinh-5-bo-phat-hien-bat-chuoc.png)
+![Tỷ lệ né với kẻ tấn công bắt chước gói thật, chờ 365 ngày, ngân sách 10 USD](../images/bc-hinh-5-bo-phat-hien-bat-chuoc.png)
 
 <div align="center"><em>Hình 5. Tỷ lệ né với kẻ tấn công bắt chước gói thật, chờ 365 ngày, ngân sách 10 USD</em></div>
 
