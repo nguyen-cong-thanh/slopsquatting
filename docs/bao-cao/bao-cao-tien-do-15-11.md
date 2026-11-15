@@ -9,7 +9,7 @@
 Trong kỳ này, đề tài đã xây công cụ thu thập dữ liệu, thu câu trả lời của ba LLM trên 18.033 câu hỏi, gắn nhãn các tên gói, và chạy thử nghiệm sơ bộ cho bộ phát hiện và cho tấn công né tránh. Các kết quả chính:
 
 1. Tỷ lệ lượt gợi ý là tên bịa khác nhau theo model: Llama 3.1 8B 24,6%, GLM 5.3 5,0%, DeepSeek V4.1 Flash 3,3%. Có 760 tên bịa do cả ba model cùng gợi ý.
-2. Bộ phát hiện chỉ dùng tên bắt được 20,1% tên bịa ở mức báo nhầm 1%. Khi kiểm thử trên tên của một model không có trong dữ liệu huấn luyện, tỷ lệ này còn 3,4–15,1%.
+2. Bộ phát hiện chỉ dùng tên bắt được 20,1% tên bịa ở mức báo nhầm 1%. Khi kiểm thử trên tên do một LLM gợi ý mà tên của LLM đó không có trong dữ liệu huấn luyện, tỷ lệ này còn 3,4–15,1%.
 3. Bộ phát hiện dùng thêm metadata (tầng 2) phân biệt chủ yếu nhờ tuổi gói: nó báo nhầm 99,1% gói thật mới đăng, và chỉ bắt được 10,8% trong 120 tên bịa đã bị đăng ký thật. Kẻ tấn công đăng ký tên rồi chờ 90 ngày là đạt gần mức né tối đa.
 4. Tên bịa chỉ một model sinh ra phần lớn không còn được gợi ý ở các phiên bản khác của cùng họ model. Tên bịa do cả ba model cùng sinh ra thì khoảng 2/3 vẫn được gợi ý lại.
 5. Trong các gói có thật mà LLM gợi ý, 693 gói ra đời sau mốc dữ liệu của mọi model đã gợi ý chúng. Kiểm tra từng gói cho thấy 141 gói (20,3%) là gói rỗng hoặc chiếm tên.
@@ -285,21 +285,23 @@ Thiết lập chung cho các thử nghiệm bộ phát hiện trong phần này:
 
 ### 3.1. Bộ phát hiện chỉ dùng tên
 
-Kết luận: bộ phát hiện chỉ dùng tên bắt được ít tên bịa, và không tổng quát sang model chưa có trong dữ liệu huấn luyện.
+Kết luận: bộ phát hiện chỉ dùng tên bắt được ít tên bịa, và không tổng quát sang tên do một LLM khác sinh ra.
+
+Ba LLM ở đây chỉ là nguồn đã sinh ra các tên gói trong dữ liệu. Thứ được huấn luyện và kiểm thử là bộ phát hiện. Ví dụ, dòng thứ hai của bảng 10 nghĩa là: bộ phát hiện học trên các tên do Llama và DeepSeek gợi ý, rồi được kiểm thử trên các tên do GLM gợi ý. Tập kiểm thử gồm tên bịa chỉ GLM sinh ra (Llama và DeepSeek chưa từng bịa ra) và tên thật GLM gợi ý. Cách kiểm thử này mô phỏng tình huống bộ phát hiện gặp tên bịa của một LLM mới ra đời sau khi đã huấn luyện xong.
 
 | Cách kiểm thử | N-gram ký tự và LR | Đặc trưng thủ công và GB |
 |---|---|---|
-| Huấn luyện và kiểm thử trên cả ba model | 20,1% | 8,9% |
-| Huấn luyện trên Llama và DeepSeek, kiểm thử trên GLM | 6,8% | 3,7% |
-| Huấn luyện trên Llama và GLM, kiểm thử trên DeepSeek | 15,1% | 3,4% |
-| Huấn luyện trên DeepSeek và GLM, kiểm thử trên Llama | 14,8% | 10,7% |
+| Học và kiểm thử trên tên của cả ba LLM | 20,1% | 8,9% |
+| Học trên tên do Llama và DeepSeek gợi ý, kiểm thử trên tên do GLM gợi ý | 6,8% | 3,7% |
+| Học trên tên do Llama và GLM gợi ý, kiểm thử trên tên do DeepSeek gợi ý | 15,1% | 3,4% |
+| Học trên tên do DeepSeek và GLM gợi ý, kiểm thử trên tên do Llama gợi ý | 14,8% | 10,7% |
 | Báo nhầm trên gói mới đăng | 6,8% | 5,5% |
 | Báo nhầm trên gói ngẫu nhiên | 7,3% | 6,4% |
 
 <div align="center"><em>Bảng 10. Bộ phát hiện chỉ dùng tên: tỷ lệ phát hiện ở mức báo nhầm 1%, và tỷ lệ báo nhầm ngoài phân phối</em></div>
 
 - Trên cùng phân phối, mô hình tốt nhất (AUC 0,81) bắt được 20,1% tên bịa.
-- Khi model đích không có trong dữ liệu huấn luyện, tỷ lệ phát hiện còn 3,4–15,1%.
+- Khi tên của LLM dùng để kiểm thử không có trong dữ liệu huấn luyện, tỷ lệ phát hiện còn 3,4–15,1%.
 - Báo nhầm trên gói ngoài phân phối là 5,5–7,3%, cao hơn mức 1% đặt cho tên thật do LLM gợi ý.
 - Tên do cả ba model cùng bịa khó phát hiện hơn: mô hình GB bắt được 3,6% nhóm này, so với 9,5% với tên chỉ một model bịa.
 
