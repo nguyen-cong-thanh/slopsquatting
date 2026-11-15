@@ -81,9 +81,62 @@ Số tên bịa trùng giữa các model:
 ### 1.3. Dữ liệu hỏi lại
 
 - **Hỏi lại cùng model:** mỗi model chọn 250 cặp (tên bịa, câu hỏi gốc), rồi hỏi lại câu gốc 10 lần theo cả ba tác vụ. Dữ liệu này cho biết LLM lặp lại tên bịa thường đến mức nào và sinh ra những biến thể nào. Phần hỏi lại của GLM 5.3 chạy qua DeepInfra thay vì máy nội bộ; hai nơi chạy cho câu trả lời khác nhau (độ trùng tên trung bình 0,38 trên 100 câu thử), nên tỷ lệ lặp lại của GLM không so trực tiếp được với hai model còn lại.
-- **Hỏi các phiên bản khác cùng họ:** cùng các câu hỏi đã chọn được hỏi lại ở sáu phiên bản khác (bảng 11), mỗi câu 10 lần, để đo độ bền của tên bịa qua các phiên bản.
+- **Hỏi các phiên bản khác cùng họ:** cùng các câu hỏi đã chọn được hỏi lại ở sáu phiên bản khác (bảng 13), mỗi câu 10 lần, để đo độ bền của tên bịa qua các phiên bản.
 
 Mọi lượt gọi model đều hoàn tất, không còn câu nào lỗi.
+
+### 1.4. Cơ sở dữ liệu
+
+Toàn bộ dữ liệu nằm trong một file SQLite, `data/slop.sqlite`, dung lượng 4,2 GB.
+- File không đưa lên git, vì có danh sách tên bịa chưa ai đăng ký (mục 5).
+- Có thể xem bằng notebook `notebooks/phan-tich-du-lieu.ipynb`, hoặc phần mềm DB Browser for SQLite.
+
+Mỗi bước của quy trình thu thập ghi kết quả vào một nhóm bảng; bước sau đọc kết quả của bước trước:
+
+| Nhóm | Bảng | Mỗi dòng là | Số dòng |
+|---|---|---|---|
+| Câu hỏi | `prompts` | một câu hỏi | 18.033 |
+| | `prompt_tags` | một nhãn phân nhóm của câu hỏi (ví dụ thuộc bộ Spracklen, được chọn để hỏi lại) | 36.784 |
+| Câu trả lời | `generations` | một câu trả lời của một model cho một câu hỏi, ở một tác vụ, ở một lần hỏi | 225.144 |
+| Tên gói trích được | `mentions` | một tên gói trích từ một câu trả lời, kèm cách trích (`pip install`, danh sách, `import`) | 981.375 |
+| | `v_mentions` (view) | như `mentions`, kèm sẵn model, câu hỏi và lần hỏi | – |
+| PyPI | `pypi_index` | một project có trên PyPI tại ngày 12/11/2026 | 937.845 |
+| | `package_status` | kết quả tra một tên: có trên PyPI không, nếu chưa có thì đăng ký được không, và lý do | 61.993 |
+| Metadata | `metadata_raw` | dữ liệu thô của một gói từ một nguồn (PyPI, provenance, lượt tải, lịch sử tải lên, GitHub) | 164.770 |
+| | `package_features` | các đặc trưng đã tính cho một gói có trên PyPI (tuổi, lượt tải, sao, số bản phát hành…) | 32.954 |
+| Nhãn | `labels` | nhãn của một tên theo một phiên bản bộ luật, kèm luật đã quyết định và bằng chứng | 182.106 |
+| | `known_lists` | một tên trong các danh sách công khai: gói độc hại (OSV 12.022, DataDog 1.834), tên bịa đã công bố (0pstech 1.102, DepScope 20) | 14.978 |
+| | `selections` | một cặp (tên bịa, câu hỏi) được chọn để hỏi lại, 250 cặp mỗi model | 750 |
+| | `name_samples` | một gói trong hai tập mẫu dùng để đo báo nhầm: 3.000 gói mới đăng, 10.000 gói ngẫu nhiên | 13.000 |
+| Quản lý | `runs` | một lần chạy một bước, kèm cấu hình và thời gian | 170 |
+
+<div align="center"><em>Bảng 3. Các bảng trong cơ sở dữ liệu</em></div>
+
+Một vài điểm cần lưu ý khi đọc bảng 3:
+- **Các bảng nối với nhau qua ba khóa:**
+  - `prompt_id`: câu hỏi;
+  - `gen_id`: câu trả lời;
+  - `norm_name`: tên gói đã chuẩn hóa theo quy tắc của PyPI.
+
+  Ví dụ, để biết model nào gợi ý một tên bịa ở câu hỏi nào, đi từ `labels` sang `mentions` theo `norm_name`, rồi sang `generations` theo `gen_id`.
+- **Mỗi khóa là mã băm của nội dung.** Chạy lại một bước không tạo dòng trùng, và dữ liệu từ máy khác (máy nội bộ chạy GLM) gộp vào được mà không đụng nhau.
+- **Câu trả lời lỗi cũng được giữ**, kèm nội dung lỗi, và được chạy lại ở lần sau. Hiện không còn câu trả lời nào lỗi.
+- **Bảng `labels` giữ cả ba phiên bản bộ luật** (rules-v1, rules-v2, rules-v3), mỗi phiên bản khoảng 60.000 tên. Báo cáo dùng rules-v3.
+- **Bảng `metadata_raw` lưu nguyên dữ liệu thô** của 5 nguồn cho 32.954 gói. Vì vậy có thể tính lại đặc trưng mà không cần tải lại.
+
+Số câu trả lời theo cấu hình model:
+
+| Cấu hình model | Vai trò | Số câu trả lời |
+|---|---|---|
+| Llama 3.1 8B | Model chính: 18.033 câu × 3 tác vụ, cộng phần hỏi lại | 60.714 |
+| DeepSeek V4.1 Flash | Model chính, như trên | 60.363 |
+| GLM 5.3, máy nội bộ | Model chính: 18.033 câu × 3 tác vụ | 54.099 |
+| GLM 5.3, qua DeepInfra | Phần hỏi lại của GLM | 6.990 |
+| Llama 3.3 70B, Llama 4 Scout | Phiên bản khác của Llama, đo độ bền | 7.350 mỗi model |
+| DeepSeek V3, V3.1, V3.2, V4 Flash 0731 | Phiên bản khác của DeepSeek, đo độ bền | 6.960 mỗi model |
+| Qwen 3.5 4B | Chạy thử ban đầu trên máy kali, không dùng trong phân tích | 438 |
+
+<div align="center"><em>Bảng 4. Số câu trả lời theo cấu hình model</em></div>
 
 ## 2. Gắn nhãn và kiểm soát chất lượng nhãn
 
@@ -100,9 +153,9 @@ Mỗi tên gói được gắn một nhãn theo chuỗi luật áp theo thứ t�
 | Tên bịa đã bị đăng ký | Có trên PyPI, nhưng có bằng chứng do người khác đăng ký theo tên LLM bịa | 155 |
 | Gói độc hại đã biết | Có trong danh sách OSV hoặc DataDog, và toàn bộ gói là độc hại | 67 |
 
-<div align="center"><em>Bảng 3. Phân bố nhãn theo tên không trùng, bộ luật rules-v3</em></div>
+<div align="center"><em>Bảng 5. Phân bố nhãn theo tên không trùng, bộ luật rules-v3</em></div>
 
-Bảng 3 đếm tên không trùng, gồm cả tên trích từ lệnh `import` và tên ở các lần hỏi lại. Xét theo tên không trùng, tên bịa nhiều hơn tên thật khoảng 2 lần. Xét theo lượt gợi ý thì ngược lại: tên thật chiếm 86,5% trong 633.335 lượt gợi ý ở lần hỏi gốc (Llama 72,3%, DeepSeek 95,0%, GLM 93,0%).
+Bảng 5 đếm tên không trùng, gồm cả tên trích từ lệnh `import` và tên ở các lần hỏi lại. Xét theo tên không trùng, tên bịa nhiều hơn tên thật khoảng 2 lần. Xét theo lượt gợi ý thì ngược lại: tên thật chiếm 86,5% trong 633.335 lượt gợi ý ở lần hỏi gốc (Llama 72,3%, DeepSeek 95,0%, GLM 93,0%).
 
 Có hai lý do cho sự chênh lệch này:
 - Tên thật lặp lại nhiều: 100 tên thật hay gặp nhất chiếm 50,4% lượt gợi ý tên thật.
@@ -120,7 +173,7 @@ Kiểm tra mẫu nhãn và dữ liệu đã phát hiện năm lỗi. Mỗi lỗi
 | Từ nối bị đọc thành tên gói | "None, however, …" cho ra tên `however` | Bỏ các từ nối khỏi danh sách tên | 33 lượt gợi ý bị loại |
 | Tên bịa đã bị đăng ký lâu hoặc đã có nhiều lượt tải bị gắn là tên thật | Luật cũ chỉ bắt gói dưới 180 ngày tuổi và dưới 1.000 lượt tải/tháng | Thêm luật dựa trên mốc dữ liệu của model (mục 2.3) | 141 gói được gắn nhãn tên bịa đã bị đăng ký, 3 gói được gắn nhãn gói giữ chỗ |
 
-<div align="center"><em>Bảng 4. Lỗi nhãn đã phát hiện và cách sửa</em></div>
+<div align="center"><em>Bảng 6. Lỗi nhãn đã phát hiện và cách sửa</em></div>
 
 ### 2.3. Luật mốc dữ liệu và kiểm chứng thủ công
 
@@ -137,7 +190,7 @@ Mốc dữ liệu được lấy như sau:
 | DeepSeek V4.1 Flash | 03/2026 | Cộng đồng ("đầu 2026", theo câu trả lời của chính model) |
 | GLM 5.3 | 12/2025 | Cộng đồng (innfactory: "cuối 2025") |
 
-<div align="center"><em>Bảng 5. Mốc dữ liệu của các model</em></div>
+<div align="center"><em>Bảng 7. Mốc dữ liệu của các model</em></div>
 
 DeepSeek và Zhipu không công bố mốc dữ liệu. Các mốc ghi "cộng đồng" chưa được kiểm chứng. Khi các nguồn lệch nhau, mốc muộn hơn được chọn để luật gắn cờ ít hơn. Với hai phiên bản không có thông tin mốc (DeepSeek V3.2, V4 Flash 0731), luật không áp dụng cho các tên mà chúng gợi ý.
 
@@ -154,7 +207,7 @@ Kết quả với 693 gói khớp luật:
 | Gói giữ chỗ phòng vệ do tổ chức đặt (Azure SDK, conda-forge) | 0 | 3 | 3 (0,4%) |
 | Dự án có code thật, trùng tên sau mốc | 141 | 408 | 549 (79,2%) |
 
-<div align="center"><em>Bảng 6. Phân loại gói ra đời sau mốc dữ liệu</em></div>
+<div align="center"><em>Bảng 8. Phân loại gói ra đời sau mốc dữ liệu</em></div>
 
 Một số trường hợp tiêu biểu:
 - `python-dependency-injector` chỉ 1,8 KB, không có mô tả, nhưng dùng số phiên bản 4.41.0 trùng với gói thật `dependency-injector`.
@@ -212,7 +265,7 @@ Hai thuật toán học máy:
 | Các bộ trên, huấn luyện có mẫu tấn công | Như trên; tập huấn luyện có thêm gói tấn công đã biến đổi | GB | 3.6 |
 | Luật mốc | Chỉ đặc trưng mốc: cảnh báo khi giá trị lớn hơn 30 ngày | Không học | 3.6 |
 
-<div align="center"><em>Bảng 7. Các bộ phát hiện đã thử</em></div>
+<div align="center"><em>Bảng 9. Các bộ phát hiện đã thử</em></div>
 
 Thiết lập chung cho các mục 3.1–3.3 và 3.6:
 - **Chia tập:** train/test theo nhóm tên gần giống (mọi biến thể của một tên nằm cùng một phía). Mọi tên xuất hiện trong dữ liệu hỏi lại được đưa vào tập test, để phần tấn công chỉ dùng tên mà mô hình chưa thấy khi huấn luyện.
@@ -230,7 +283,7 @@ Thiết lập chung cho các mục 3.1–3.3 và 3.6:
 | Báo nhầm trên gói mới đăng | 6,8% | 5,5% |
 | Báo nhầm trên gói ngẫu nhiên | 7,3% | 6,4% |
 
-<div align="center"><em>Bảng 8. Bộ phát hiện chỉ dùng tên: tỷ lệ phát hiện ở mức báo nhầm 1%, và tỷ lệ báo nhầm ngoài phân phối</em></div>
+<div align="center"><em>Bảng 10. Bộ phát hiện chỉ dùng tên: tỷ lệ phát hiện ở mức báo nhầm 1%, và tỷ lệ báo nhầm ngoài phân phối</em></div>
 
 - Trên cùng phân phối, mô hình tốt nhất (AUC 0,81) bắt được 20,1% tên bịa.
 - Khi model đích không có trong dữ liệu huấn luyện, tỷ lệ phát hiện còn 3,4–15,1%.
@@ -252,7 +305,7 @@ Tầng 2 dùng cho tên có trên PyPI.
 | Tên và metadata, GB | 99,6% | 99,1% | 13,3% | 10,8% |
 | Tên và metadata, bỏ các đặc trưng tuổi gói, GB | 49,7% | 43,0% | 13,2% | 3,3% |
 
-<div align="center"><em>Bảng 9. Tầng 2: tỷ lệ phát hiện ở mức báo nhầm 1% trên gói thật do LLM gợi ý</em></div>
+<div align="center"><em>Bảng 11. Tầng 2: tỷ lệ phát hiện ở mức báo nhầm 1% trên gói thật do LLM gợi ý</em></div>
 
 - Mô hình có tuổi gói phát hiện 99,6% mẫu dương mô phỏng, nhưng cũng báo nhầm 99,1% gói thật mới đăng. Tức là mô hình gần như cảnh báo mọi gói mới.
 - Bỏ tuổi gói thì tỷ lệ phát hiện còn 49,7%.
@@ -281,7 +334,7 @@ Tỷ lệ né được tính như sau. Với mỗi câu hỏi đã chọn, lấy
 | 90 ngày | 91,3 / 77,0 / 61,5 | 91,3 / 77,0 / 61,5 | 64,2 / 49,3 / 37,9 | 91,9 / 78,4 / 63,2 |
 | 365 ngày | 91,9 / 78,4 / 63,2 | 91,9 / 78,4 / 63,2 | 91,9 / 78,4 / 63,2 | 91,9 / 78,4 / 63,2 |
 
-<div align="center"><em>Bảng 10. Tỷ lệ né (%) theo thời gian chờ và ngân sách, theo thứ tự Llama / DeepSeek / GLM</em></div>
+<div align="center"><em>Bảng 12. Tỷ lệ né (%) theo thời gian chờ và ngân sách, theo thứ tự Llama / DeepSeek / GLM</em></div>
 
 ![Tỷ lệ né theo thời gian chờ, bộ phát hiện tên và metadata dùng GB, 0 USD](../images/bc-hinh-3-tan-cong-cho.png)
 
@@ -315,7 +368,7 @@ Phương pháp:
 | DeepSeek V4 Flash 0731 | 07/2026 | 44,0% | 14,9% | 56,2% | 66,3% |
 | Số cặp (DeepSeek) | | 250 | 94 | 73 | 83 |
 
-<div align="center"><em>Bảng 11. Tỷ lệ cặp được gợi ý lại ít nhất một lần trong 10 lần hỏi, theo phiên bản và theo số model chính cùng bịa ra tên</em></div>
+<div align="center"><em>Bảng 13. Tỷ lệ cặp được gợi ý lại ít nhất một lần trong 10 lần hỏi, theo phiên bản và theo số model chính cùng bịa ra tên</em></div>
 
 ![Tỷ lệ cặp được gợi ý lại ở các phiên bản DeepSeek](../images/bc-hinh-4-do-ben-deepseek.png)
 
@@ -345,7 +398,7 @@ Tỷ lệ gói có trên PyPI mà LLM gợi ý nhưng ra đời sau mốc dữ l
 | GLM 5.3 | 12/2025 (cộng đồng) | 13.355 | 93 | 0,7% |
 | DeepSeek V4.1 Flash | 03/2026 (cộng đồng) | 7.650 | 34 | 0,4% |
 
-<div align="center"><em>Bảng 12. Gói có trên PyPI ra đời sau mốc dữ liệu của model đã gợi ý</em></div>
+<div align="center"><em>Bảng 14. Gói có trên PyPI ra đời sau mốc dữ liệu của model đã gợi ý</em></div>
 
 Phân loại 693 gói khớp luật ở mục 2.3 cho thấy đa số (79,2%) là dự án có code thật trùng tên. Khoảng 1/5 (20,3%) là gói rỗng hoặc chiếm tên.
 
@@ -373,7 +426,7 @@ Ngoài các kịch bản ở mục 3.3, phần này đo thêm hai kiểu kẻ t�
 | Bỏ tuổi gói, thêm đặc trưng mốc, GB, có mẫu tấn công | 2,1 / 0,4 / 0,5 | 3,6 / 4,0 / 0,7 | 10,6 / 76,4 / 58,6 | 26,1 / 78,4 / 63,1 | 6,2 / 30,6 / – |
 | Luật mốc, không học | 6,5 / 0,6 / 0,7 | 0,6 / 2,7 / 0,3 | 0,6 / 2,7 / 0,3 | 0,6 / 2,7 / 0,3 | 6,3 / 32,9 / – |
 
-<div align="center"><em>Bảng 13. Báo nhầm và tỷ lệ né (%), theo thứ tự Llama / DeepSeek / GLM; mức trần 91,9 / 78,4 / 63,2</em></div>
+<div align="center"><em>Bảng 15. Báo nhầm và tỷ lệ né (%), theo thứ tự Llama / DeepSeek / GLM; mức trần 91,9 / 78,4 / 63,2</em></div>
 
 ![Tỷ lệ né với kẻ tấn công bắt chước gói thật, chờ 365 ngày, ngân sách 10 USD](../images/bc-hinh-5-bo-phat-hien-bat-chuoc.png)
 
@@ -382,7 +435,7 @@ Ngoài các kịch bản ở mục 3.3, phần này đo thêm hai kiểu kẻ t�
 Chỉ có hai bộ phát hiện giữ được: luật mốc giữ được với cả ba model; các bộ "bỏ tuổi gói, thêm mốc" chỉ giữ được với Llama. Các bộ còn lại bị né đến mức trần.
 
 
-Đọc bảng 13:
+Đọc bảng 15:
 
 - **Chỉ thêm đặc trưng mốc thì không đổi gì.** Mẫu dương mô phỏng khi huấn luyện đều là gói mới, nên tuổi gói đã đủ để phân biệt, và mô hình không dùng đến đặc trưng mốc. Kết quả tấn công giống hệt mô hình không có đặc trưng mốc.
 - **Huấn luyện có mẫu tấn công chỉ chặn được đúng kiểu tấn công đã mô phỏng.** Tỷ lệ né với kiểu tấn công đó giảm còn 0,5–4,0%. Nhưng kẻ tấn công bắt chước gói thật, với 10 USD, lại né đến mức trần. Như vậy mô hình đã học các giá trị đặc trưng của cách làm giả trong mô phỏng, không học tín hiệu tổng quát. Đánh giá huấn luyện có mẫu tấn công bằng chính kiểu tấn công đã dùng để huấn luyện sẽ cho kết quả lạc quan sai.
@@ -395,7 +448,7 @@ Chỉ có hai bộ phát hiện giữ được: luật mốc giữ được vớ
   - Đổi lại, luật báo nhầm 6,5% gói thật do Llama gợi ý, so với khoảng 1% của các mô hình học máy.
   - Kiểu đăng ký trước mốc vượt qua luật theo thiết kế. Tỷ lệ kỳ vọng là 6,3% với Llama và 32,9% với DeepSeek. Với DeepSeek, mức này cao vì tên bịa của DeepSeek bền qua các phiên bản (mục 3.4).
 
-Mọi bộ phát hiện ở bảng 13 đều báo nhầm 96,6–99,5% gói thật mới đăng. Mức này chấp nhận được hay không phụ thuộc vào tỷ lệ gói mới trong các gói thật mà LLM gợi ý; theo bảng 12, tỷ lệ đó là 0,4–6,6%.
+Mọi bộ phát hiện ở bảng 15 đều báo nhầm 96,6–99,5% gói thật mới đăng. Mức này chấp nhận được hay không phụ thuộc vào tỷ lệ gói mới trong các gói thật mà LLM gợi ý; theo bảng 14, tỷ lệ đó là 0,4–6,6%.
 
 ## 4. Hạn chế chung
 
@@ -423,7 +476,7 @@ Mọi bộ phát hiện ở bảng 13 đều báo nhầm 96,6–99,5% gói thậ
 | 2. So với kẻ tấn công được tự do sửa tên | Chưa làm |
 | 3. Huấn luyện có mẫu tấn công có làm bộ phát hiện bền hơn không | Có kết quả sơ bộ: chỉ bền trước đúng kiểu tấn công đã dùng để huấn luyện (mục 3.6) |
 
-<div align="center"><em>Bảng 14. Trạng thái các câu hỏi nghiên cứu</em></div>
+<div align="center"><em>Bảng 16. Trạng thái các câu hỏi nghiên cứu</em></div>
 
 Việc tiếp theo dự kiến:
 1. Duyệt 667 nhãn còn gắn cờ (mục 2.4). Nhờ người duyệt thứ hai cho một mẫu ngẫu nhiên của 693 gói ra đời sau mốc, rồi tính độ đồng thuận.
