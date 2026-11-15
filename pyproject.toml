@@ -30,6 +30,12 @@ dev = [
     "pandas>=3.1.0",
     "numpy>=2.4.6",
 ]
+notebook = [
+    "ipykernel>=7.4.0",
+    "jupyterlab>=4.6.4",
+    "matplotlib>=3.11.2",
+    "nbclient>=0.11.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.11,<0.12"]
