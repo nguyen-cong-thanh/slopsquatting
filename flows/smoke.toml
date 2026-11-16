@@ -1,0 +1,59 @@
+# Chạy thử toàn bộ luồng với model giả (không cần GPU), nhưng tra PyPI và tải danh sách thật.
+# Dùng để kiểm tra máy có chạy được pipeline trước khi tốn thời gian với LLM thật.
+[flow]
+name = "smoke"
+db = "data/smoke.sqlite"
+
+[[steps]]
+stage = "load_prompts"
+source = "spracklen"
+
+[[steps]]
+stage = "generate"
+model = "fake"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+limit = 20
+
+[[steps]]
+stage = "generate"
+model = "fake"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+limit = 20
+
+[[steps]]
+stage = "generate"
+model = "fake"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]
+limit = 20
+
+[[steps]]
+stage = "extract"
+
+[[steps]]
+stage = "known_lists"
+
+[[steps]]
+stage = "pypi_index"
+
+[[steps]]
+stage = "check"
+
+[[steps]]
+stage = "metadata"
+sources = ["pypi_json", "pypi_provenance"]
+
+[[steps]]
+stage = "label"
+review_csv = "data/review/smoke_needs_review.csv"
+
+[[steps]]
+stage = "export"
+out_dir = "data/exports/smoke"
+format = "csv"
+
+[[steps]]
+stage = "stats"
+out = "data/exports/smoke/stats"

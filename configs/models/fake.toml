@@ -1,0 +1,10 @@
+description = "Model giả, trả lời tất định. Dùng để chạy thử luồng và test, không cần mạng."
+backend = "fake"
+model = "fake-1"
+concurrency = 4
+
+[params]
+seed_mode = "per_sample"
+
+[extra]
+hallucination_rate = 0.4

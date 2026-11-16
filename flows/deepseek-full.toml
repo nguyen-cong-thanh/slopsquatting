@@ -1,0 +1,30 @@
+# Toàn bộ 18.033 câu hỏi trên DeepSeek V4.1 Flash (DeepInfra API). Chi phí ước tính ~5 USD lúc đang giảm giá.
+# Chạy nền: bash scripts/run_bg.sh flows/deepseek-full.toml   (dừng / chạy lại tiếp tục được)
+[flow]
+name = "deepseek-full"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "load_prompts"
+source = "spracklen"
+
+[[steps]]
+name = "gen-code"
+stage = "generate"
+model = "deepseek-v41-flash-deepinfra"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+
+[[steps]]
+name = "gen-pkgs-code"
+stage = "generate"
+model = "deepseek-v41-flash-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+
+[[steps]]
+name = "gen-pkgs-prompt"
+stage = "generate"
+model = "deepseek-v41-flash-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]

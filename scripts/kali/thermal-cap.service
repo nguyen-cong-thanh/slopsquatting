@@ -1,0 +1,12 @@
+[Unit]
+Description=Giu nhiet do CPU quanh 80 do C bang cach gioi han xung (quat giu mac dinh)
+After=multi-user.target
+
+[Service]
+ExecStart=/usr/local/bin/thermal-cap.sh
+Environment=TARGET_HIGH=82 TARGET_LOW=77 MIN_MHZ=1200 MAX_MHZ=3200 START_MHZ=2400
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

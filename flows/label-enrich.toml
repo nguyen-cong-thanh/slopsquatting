@@ -1,0 +1,30 @@
+# Sau khi đã có câu trả lời (và đã merge dữ liệu GLM): trích tên, tra PyPI, metadata, gắn nhãn, xuất, thống kê.
+# Cần Internet. Chạy lại bất cứ lúc nào: bước nào đã làm sẽ bỏ qua phần đã có.
+[flow]
+name = "label-enrich"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "extract"
+
+[[steps]]
+stage = "known_lists"
+
+[[steps]]
+stage = "pypi_index"
+
+[[steps]]
+stage = "check"
+
+[[steps]]
+stage = "metadata"
+
+[[steps]]
+stage = "label"
+# cutoff_date = "2025-01-01"   # bật luật after_cutoff: gói phát hành đầu sau mốc này bị nghi (cần duyệt tay)
+
+[[steps]]
+stage = "export"
+
+[[steps]]
+stage = "stats"

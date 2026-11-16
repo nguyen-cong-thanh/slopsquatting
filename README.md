@@ -56,6 +56,17 @@ Các tài liệu gốc nằm trên Google Drive (file .docx, .xlsx, Google Docs,
 | [mo-rong-mo-hinh.md](docs/du-lieu/mo-rong-mo-hinh.md) | Mở rộng số LLM theo tầng (A bắt buộc, B cục bộ miễn phí token, C thương mại 500 câu) và hình so sánh tự động: tỷ lệ bịa, độ trùng tên, phát hiện chéo. Có chạy thử trên 14 LLM của Trend Micro. Mã: [`experiments/compare/`](experiments/compare/) | 10/11/2026 |
 | [de-xuat-chot-input-output.md](docs/du-lieu/de-xuat-chot-input-output.md) | **Gửi thầy hướng dẫn.** Đề xuất chốt input/output của bài toán và từng thành phần, sản phẩm cuối, 10 điểm cần duyệt, việc tuần này | 09/11/2026 |
 
+## Code thu thập dữ liệu
+
+Pipeline `slopcollect` (`src/slopcollect/`) gửi câu hỏi lập trình cho LLM, lấy tên gói, tra PyPI, gắn nhãn, thu metadata và hỏi lại để thu biến thể. Đổi model hoặc đổi luồng chỉ cần sửa file TOML trong `configs/` và `flows/`. Hướng dẫn đầy đủ: [thu-thap-du-lieu.md](docs/huong-dan/thu-thap-du-lieu.md). Hướng dẫn cho máy GLM không có Internet: [chay-tren-may-glm.md](docs/huong-dan/chay-tren-may-glm.md).
+
+```bash
+uv sync --all-extras
+uv run pytest
+uv run python -m slopcollect run flows/smoke.toml    # chạy thử cả luồng với model giả
+uv run python -m slopcollect run flows/pilot.toml    # 200 câu trên Qwen 3.5 4B (máy kali)
+```
+
 ## Đạo đức nghiên cứu
 
 Toàn bộ thực nghiệm chạy trong môi trường mô phỏng có kiểm soát. Không đăng ký bất kỳ tên gói nào lên registry công khai.

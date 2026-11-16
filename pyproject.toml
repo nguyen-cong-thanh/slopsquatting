@@ -1,0 +1,31 @@
+[project]
+name = "slopcollect"
+version = "0.1.0"
+description = "Thu thập tên gói do LLM gợi ý, tra PyPI, gắn nhãn và thu metadata cho đề tài slopsquatting"
+readme = "README.md"
+requires-python = ">=3.11"
+# Phần lõi và bước gọi LLM chỉ dùng thư viện chuẩn, để chạy được trên máy không có Internet.
+dependencies = []
+
+[project.optional-dependencies]
+# Luật cấm tên trùng thư viện chuẩn, lấy đúng gói mà PyPI (warehouse) dùng.
+pypi = ["stdlib-list==0.12.0"]
+# Xuất Parquet.
+export = ["pyarrow>=21"]
+
+[project.scripts]
+slopcollect = "slopcollect.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "stdlib-list==0.12.0", "pyarrow>=21"]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv]
+# Chỉ dùng bản phát hành đã ra ít nhất hai tuần (giảm rủi ro chuỗi cung ứng).
+exclude-newer = "2026-10-28T00:00:00Z"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

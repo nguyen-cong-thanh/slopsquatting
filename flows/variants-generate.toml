@@ -1,0 +1,20 @@
+# Hỏi lại câu gốc cho các tên Qwen đã bịa: tổng cộng 10 lần mỗi câu (lần 0 đã có, thêm 9 lần),
+# rồi hỏi "cần gói nào để chạy code" cho mỗi lần. Sau đó chạy lại label-enrich và stats với selection_id.
+[flow]
+name = "variants-generate"
+db = "data/slop.sqlite"
+
+[[steps]]
+name = "gen-code"
+stage = "generate"
+model = "qwen35-4b-kali"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:qwen35-4b-kali"]
+n_samples = 10
+
+[[steps]]
+name = "gen-pkgs-code"
+stage = "generate"
+model = "qwen35-4b-kali"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:qwen35-4b-kali"]

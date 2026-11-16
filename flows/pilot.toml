@@ -1,0 +1,55 @@
+# Chạy thử 200 câu hỏi trên Qwen 3.5 4B (máy kali), rồi tra PyPI, gắn nhãn, thống kê.
+# Thứ tự câu hỏi cố định: chạy toàn bộ (local-full.toml) sau đó sẽ dùng lại 200 câu này.
+[flow]
+name = "pilot"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "load_prompts"
+source = "spracklen"
+
+[[steps]]
+name = "gen-code"
+stage = "generate"
+model = "qwen35-4b-kali"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "gen-pkgs-code"
+stage = "generate"
+model = "qwen35-4b-kali"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "gen-pkgs-prompt"
+stage = "generate"
+model = "qwen35-4b-kali"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+stage = "extract"
+
+[[steps]]
+stage = "known_lists"
+
+[[steps]]
+stage = "pypi_index"
+
+[[steps]]
+stage = "check"
+
+[[steps]]
+stage = "metadata"
+
+[[steps]]
+stage = "label"
+
+[[steps]]
+stage = "stats"
+out = "data/exports/pilot_stats"

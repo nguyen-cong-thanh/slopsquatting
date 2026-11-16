@@ -1,0 +1,13 @@
+# Dữ liệu thu thập: không đưa lên git (tên gói ảo giác cần công bố có trách nhiệm)
+data/
+dist/
+
+# Cấu hình model riêng của từng máy (địa chỉ server, tên model)
+configs/models/*.local.toml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/

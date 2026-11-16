@@ -1,0 +1,21 @@
+description = "GLM 5.3 trên máy nội bộ, API chuẩn OpenAI. SỬA base_url và model cho đúng máy của bạn."
+backend = "openai_compat"
+base_url = "http://localhost:8000/v1"   # SỬA: địa chỉ endpoint, kết thúc bằng /v1
+model = "glm-5.3"                         # SỬA: đúng tên model mà server trả về ở GET /v1/models
+concurrency = 4                           # số câu gửi song song; tăng nếu server chịu được
+timeout_s = 900
+# api_key_env = "GLM_API_KEY"             # bỏ dấu # nếu server cần khóa (đọc từ biến môi trường này)
+
+[params]
+think = false
+seed_mode = "per_sample"
+
+[extra]
+# Cách tắt thinking: "chat_template_kwargs" (vLLM, SGLang), "zhipu" (API kiểu Zhipu/Z.ai), "none".
+think_style = "chat_template_kwargs"
+# top_k không thuộc chuẩn OpenAI; vLLM/SGLang nhận. Đặt false nếu server báo lỗi tham số lạ.
+send_top_k = true
+send_seed = true
+
+# [extra.extra_body]
+# Trường bổ sung gửi kèm mọi request, nếu server cần.
