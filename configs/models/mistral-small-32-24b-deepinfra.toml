@@ -1,0 +1,17 @@
+description = "Mistral Small 3.2 24B (06/2025), model chính qua DeepInfra. Khóa API đọc từ file, không nằm trong repo."
+backend = "openai_compat"
+base_url = "https://api.deepinfra.com/v1/openai"
+model = "mistralai/Mistral-Small-3.2-24B-Instruct-2506"
+api_key_env = "DEEPINFRA_API_KEY"
+api_key_file = "~/.config/deepinfra/api_key"
+concurrency = 128
+timeout_s = 300
+
+[params]
+seed_mode = "per_sample"
+
+[extra]
+# Không có chế độ suy nghĩ (đã thử 25/11/2026).
+think_style = "none"
+send_top_k = true
+send_seed = true

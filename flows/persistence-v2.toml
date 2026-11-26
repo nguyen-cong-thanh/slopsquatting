@@ -1,0 +1,54 @@
+# Độ bền (đợt 2): hỏi các phiên bản cũ cùng cỡ đúng những câu hỏi đã chọn ở variants-v1, mỗi câu 10 lần,
+# theo cả ba tác vụ của Spracklen. Kế hoạch model 25/11/2026.
+#   DeepSeek gốc V4.1 Flash -> V4 Flash (bản đầu, 284B)
+#   GLM gốc 5.3 (selection glm53-internal) -> GLM 5.2
+# Chi phí ước tính khoảng 7 USD (giá DeepInfra 25/11/2026). Sau đó chạy flows/label-enrich-glm.toml.
+[flow]
+name = "persistence-v2"
+db = "data/slop.sqlite"
+
+[[steps]]
+name = "deepseek-v4-flash-deepinfra-code"
+stage = "generate"
+model = "deepseek-v4-flash-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "deepseek-v4-flash-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "deepseek-v4-flash-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+
+[[steps]]
+name = "deepseek-v4-flash-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "deepseek-v4-flash-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:deepseek-v41-flash-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "glm52-deepinfra-code"
+stage = "generate"
+model = "glm52-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:glm53-internal"]
+n_samples = 10
+
+[[steps]]
+name = "glm52-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "glm52-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:glm53-internal"]
+
+[[steps]]
+name = "glm52-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "glm52-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:glm53-internal"]
+n_samples = 10

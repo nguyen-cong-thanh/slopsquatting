@@ -1,0 +1,101 @@
+# Độ bền (đợt 3): hỏi các phiên bản cũ cùng cỡ đúng những câu đã chọn ở variants-v1 cho 3 model chính mới,
+# mỗi câu 10 lần, theo cả ba tác vụ của Spracklen. Kế hoạch model 25/11/2026.
+#   Mistral Small 3.2 2506 -> Mistral Small 24B 2501
+#   Qwen3.6 35B-A3B -> Qwen3.5 35B-A3B, Qwen3 30B-A3B
+#   Nemotron 3.5 Super -> Nemotron 3 Super
+# Chạy sau flows/variants-new-main.toml (cần selection). Sau đó chạy flows/label-enrich-glm.toml.
+[flow]
+name = "persistence-v3"
+db = "data/slop.sqlite"
+
+[[steps]]
+name = "mistral-small-24b-2501-deepinfra-code"
+stage = "generate"
+model = "mistral-small-24b-2501-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:mistral-small-32-24b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "mistral-small-24b-2501-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "mistral-small-24b-2501-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:mistral-small-32-24b-deepinfra"]
+
+[[steps]]
+name = "mistral-small-24b-2501-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "mistral-small-24b-2501-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:mistral-small-32-24b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "qwen35-35b-a3b-deepinfra-code"
+stage = "generate"
+model = "qwen35-35b-a3b-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:qwen36-35b-a3b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "qwen35-35b-a3b-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "qwen35-35b-a3b-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:qwen36-35b-a3b-deepinfra"]
+
+[[steps]]
+name = "qwen35-35b-a3b-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "qwen35-35b-a3b-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:qwen36-35b-a3b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "qwen3-30b-a3b-deepinfra-code"
+stage = "generate"
+model = "qwen3-30b-a3b-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:qwen36-35b-a3b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "qwen3-30b-a3b-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "qwen3-30b-a3b-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:qwen36-35b-a3b-deepinfra"]
+
+[[steps]]
+name = "qwen3-30b-a3b-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "qwen3-30b-a3b-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:qwen36-35b-a3b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "nemotron3-super-deepinfra-code"
+stage = "generate"
+model = "nemotron3-super-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:nemotron35-super-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "nemotron3-super-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "nemotron3-super-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:nemotron35-super-deepinfra"]
+
+[[steps]]
+name = "nemotron3-super-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "nemotron3-super-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:nemotron35-super-deepinfra"]
+n_samples = 10

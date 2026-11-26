@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -244,6 +245,22 @@ def connect_readonly(path: Path | str) -> sqlite3.Connection:
     return conn
 
 
+def _schema_current(conn: sqlite3.Connection) -> bool:
+    """CSDL đã có đủ bảng, chỉ mục và view đúng bản code chưa (chỉ đọc, không cần khóa ghi)."""
+    try:
+        row = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
+    except sqlite3.OperationalError:
+        return False
+    if row is None or int(row[0]) != SCHEMA_VERSION:
+        return False
+    have = {r[0]: r[1] for r in conn.execute("SELECT name, sql FROM sqlite_master")}
+    names = re.findall(r"CREATE (?:TABLE|INDEX) IF NOT EXISTS (\w+)", SCHEMA)
+    if any(n not in have for n in names):
+        return False
+    views = re.findall(r"(CREATE VIEW (\w+) AS.*?);", VIEWS, re.S)
+    return all(have.get(name) == sql for sql, name in views)
+
+
 def connect(path: Path | str) -> sqlite3.Connection:
     p = Path(path)
     if str(p) != ":memory:":
@@ -256,7 +273,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn.execute("PRAGMA synchronous = FULL")
     # Tạo bảng/view cần khóa ghi; executescript không chờ hết timeout khi một luồng khác đang ghi,
     # nên tự thử lại (chạy hai luồng cùng lúc trên một CSDL).
-    for attempt in range(30):
+    # CSDL đã đúng bản thì bỏ qua: DROP/CREATE VIEW cần khóa ghi, dễ bị luồng khác đang ghi chặn.
+    for attempt in range(0 if _schema_current(conn) else 30):
         try:
             conn.executescript(SCHEMA)
             conn.executescript(VIEWS)

@@ -1,0 +1,81 @@
+# Hỏi lại câu gốc cho tên bịa của 3 model chính mới (kế hoạch 25/11/2026): chọn 250 cặp (tên bịa, câu hỏi gốc)
+# mỗi model, rồi hỏi mỗi câu tổng cộng 10 lần (lần 0 đã có) theo cả ba tác vụ của Spracklen.
+# Chạy sau khi đã gắn nhãn dữ liệu đầy đủ của 3 model (flows/label-enrich-glm.toml).
+[flow]
+name = "variants-new-main"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "select_variants"
+selection_id = "variants-v1"
+models = ["mistral-small-32-24b-deepinfra", "qwen36-35b-a3b-deepinfra", "nemotron35-super-deepinfra"]
+n = 750
+
+[[steps]]
+name = "mistral-small-32-24b-deepinfra-code"
+stage = "generate"
+model = "mistral-small-32-24b-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:mistral-small-32-24b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "mistral-small-32-24b-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "mistral-small-32-24b-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:mistral-small-32-24b-deepinfra"]
+
+[[steps]]
+name = "mistral-small-32-24b-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "mistral-small-32-24b-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:mistral-small-32-24b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "qwen36-35b-a3b-deepinfra-code"
+stage = "generate"
+model = "qwen36-35b-a3b-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:qwen36-35b-a3b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "qwen36-35b-a3b-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "qwen36-35b-a3b-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:qwen36-35b-a3b-deepinfra"]
+
+[[steps]]
+name = "qwen36-35b-a3b-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "qwen36-35b-a3b-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:qwen36-35b-a3b-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "nemotron35-super-deepinfra-code"
+stage = "generate"
+model = "nemotron35-super-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:nemotron35-super-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "nemotron35-super-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "nemotron35-super-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:nemotron35-super-deepinfra"]
+
+[[steps]]
+name = "nemotron35-super-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "nemotron35-super-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:nemotron35-super-deepinfra"]
+n_samples = 10

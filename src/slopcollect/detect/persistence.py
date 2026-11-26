@@ -27,22 +27,54 @@ METHODS = ("pip_install", "llm_list")
 HALLUCINATED = ("hallucinated_absent", "registered_hallucination")
 N_SAMPLES = 10
 
-# Họ model: bản gốc -> các phiên bản khác, kèm thời điểm phát hành (theo công bố của hãng / tên bản trên DeepInfra).
+# Năm model chính (kế hoạch 25/11/2026), dùng để đếm số model cùng bịa ra một tên. Llama 3.1 8B chỉ còn là đối chứng.
+MAIN_MODELS = (
+    "mistral-small-32-24b-deepinfra",
+    "qwen36-35b-a3b-deepinfra",
+    "nemotron35-super-deepinfra",
+    "deepseek-v41-flash-deepinfra",
+    "glm53-internal",
+)
+
+# Họ model: bản gốc -> các phiên bản khác cùng cỡ (cũ hơn), kèm thời điểm phát hành khi biết chắc.
+# reask: model chứa các lần hỏi lại của chính bản gốc (GLM 5.3 gốc chạy trên máy nội bộ, hỏi lại qua DeepInfra).
 FAMILIES = {
-    "llama31-8b-deepinfra": {
-        "label": "Llama 3.1 8B (07/2024)",
+    "mistral-small-32-24b-deepinfra": {
+        "label": "Mistral Small 3.2 24B (06/2025)",
+        "versions": {"mistral-small-24b-2501-deepinfra": "Mistral Small 3 24B 2501 (01/2025)"},
+    },
+    "qwen36-35b-a3b-deepinfra": {
+        "label": "Qwen3.6 35B-A3B",
         "versions": {
-            "llama33-70b-deepinfra": "Llama 3.3 70B (12/2024)",
-            "llama4-scout-deepinfra": "Llama 4 Scout (04/2025)",
+            "qwen35-35b-a3b-deepinfra": "Qwen3.5 35B-A3B (02/2026)",
+            "qwen3-30b-a3b-deepinfra": "Qwen3 30B-A3B (04/2025)",
         },
+    },
+    "nemotron35-super-deepinfra": {
+        "label": "Nemotron 3.5 Super 120B-A12B",
+        "versions": {"nemotron3-super-deepinfra": "Nemotron 3 Super 120B-A12B"},
     },
     "deepseek-v41-flash-deepinfra": {
         "label": "DeepSeek V4.1 Flash 1017 (10/2026)",
         "versions": {
-            "deepseek-v3-deepinfra": "DeepSeek V3 (12/2024)",
-            "deepseek-v31-deepinfra": "DeepSeek V3.1 (08/2025)",
-            "deepseek-v32-deepinfra": "DeepSeek V3.2 (12/2025)",
+            "deepseek-v4-flash-deepinfra": "DeepSeek V4 Flash (04/2026)",
             "deepseek-v4-flash-0731-deepinfra": "DeepSeek V4 Flash 0731 (07/2026)",
+            "deepseek-v3-deepinfra": "DeepSeek V3 (12/2024, khác cỡ)",
+            "deepseek-v31-deepinfra": "DeepSeek V3.1 (08/2025, khác cỡ)",
+            "deepseek-v32-deepinfra": "DeepSeek V3.2 (12/2025, khác cỡ)",
+        },
+    },
+    "glm53-internal": {
+        "label": "GLM 5.3",
+        "reask": "glm53-deepinfra",
+        "versions": {"glm52-deepinfra": "GLM 5.2 (06/2026)"},
+    },
+    # Đối chứng (không còn là model chính): không có bản cũ cùng cỡ.
+    "llama31-8b-deepinfra": {
+        "label": "Llama 3.1 8B (07/2024, đối chứng)",
+        "versions": {
+            "llama33-70b-deepinfra": "Llama 3.3 70B (12/2024, khác cỡ)",
+            "llama4-scout-deepinfra": "Llama 4 Scout (04/2025, khác cỡ)",
         },
     },
 }
@@ -61,16 +93,18 @@ def analyse(db: str) -> dict:
         "SELECT norm_name AS name, prompt_id, model_key AS base FROM selections WHERE selection_id = ?", conn, params=[SELECTION]
     )
     out: dict = {"selection": SELECTION, "labeler_version": LABELER_VERSION, "families": {}}
-    # Số model gốc (ba model chính, lần hỏi 0) cùng bịa ra mỗi tên.
+    # Số model chính (năm model, lần hỏi 0) cùng bịa ra mỗi tên.
     n_models = pd.read_sql_query(
         f"SELECT norm_name AS name, COUNT(DISTINCT model_key) AS k FROM v_mentions WHERE method IN ({ph}) AND root_sample_idx = 0 "
-        "AND model_key IN ('llama31-8b-deepinfra', 'deepseek-v41-flash-deepinfra', 'glm53-internal') GROUP BY 1",
-        conn, params=[*METHODS],
+        f"AND model_key IN ({','.join('?' * len(MAIN_MODELS))}) GROUP BY 1",
+        conn, params=[*METHODS, *MAIN_MODELS],
     ).set_index("name")["k"]
+    out["main_models"] = list(MAIN_MODELS)
     for base, fam in FAMILIES.items():
         s = sel[sel.base == base][["name", "prompt_id"]].drop_duplicates()
         prompts = list(s.prompt_id.unique())
-        models = [base, *fam["versions"]]
+        base_rs = fam.get("reask", base)
+        models = [base_rs, *fam["versions"]]
         q = (
             f"SELECT model_key, prompt_id, root_sample_idx AS sample, norm_name AS name FROM v_mentions "
             f"WHERE method IN ({ph}) AND model_key IN ({','.join('?' * len(models))}) "
@@ -98,7 +132,7 @@ def analyse(db: str) -> dict:
             d = s.set_index(["name", "prompt_id"]).join(k).fillna({"k": 0})
             d["n"] = [gen.get((model, p), 0) - (1 if skip_first else 0) for p in d.index.get_level_values("prompt_id")]
             d = d[d.n > 0].copy()
-            d["n_models"] = [n_models.get(x, 1) for x in d.index.get_level_values("name")]
+            d["n_models"] = [n_models.get(x, 0) for x in d.index.get_level_values("name")]
             return d
 
         def summary(d: pd.DataFrame) -> dict:
@@ -106,7 +140,7 @@ def analyse(db: str) -> dict:
             r["any_by_n_models"] = {int(i): {"pairs": int(len(g)), "any": _r((g.k > 0).mean())} for i, g in d.groupby("n_models")}
             return r
 
-        b = per_pair(base, skip_first=True)
+        b = per_pair(base_rs, skip_first=True)
         res = {"label": fam["label"], "pairs": int(len(s)), "prompts": len(prompts), "base": summary(b), "versions": {}}
         for v, vlabel in fam["versions"].items():
             d = per_pair(v)
@@ -148,7 +182,7 @@ def to_md(res: dict) -> str:
             note = "" if v.get("complete") else " (chưa đủ dữ liệu)"
             L.append(f"| {v['label']}{note} | {v['repeat']} | {v['any']} | {v['hallucination_share_of_mentions']} | "
                      f"{v['own_also_by_base']} ({v['own_hallucinated_names']} tên) |")
-        L.append("\nÍt nhất một lần, theo số model chính (Llama 3.1, DeepSeek V4.1, GLM 5.3) cùng bịa ra tên:\n")
+        L.append("\nÍt nhất một lần, theo số model chính (Mistral 3.2, Qwen3.6, Nemotron 3.5, DeepSeek V4.1, GLM 5.3) cùng bịa ra tên:\n")
         rows = [("bản gốc", fam["base"])] + [(v["label"], v) for v in fam["versions"].values() if v.get("pairs")]
         for lab, x in rows:
             L.append(f"- {lab}: " + ", ".join(f"{i} model: {g['any']} ({g['pairs']} cặp)" for i, g in x["any_by_n_models"].items()))

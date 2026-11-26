@@ -1,0 +1,26 @@
+# Toàn bộ 18.033 câu hỏi trên Nemotron 3.5 Super 120B-A12B (DeepInfra), model chính mới theo kế hoạch 25/11/2026.
+# Chi phí ước tính khoảng 9 USD (giá DeepInfra 25/11/2026). Chạy nền: bash scripts/run_bg.sh flows/nemotron35-full.toml
+[flow]
+name = "nemotron35-full"
+db = "data/slop.sqlite"
+
+[[steps]]
+name = "gen-code"
+stage = "generate"
+model = "nemotron35-super-deepinfra"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+
+[[steps]]
+name = "gen-pkgs-code"
+stage = "generate"
+model = "nemotron35-super-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+
+[[steps]]
+name = "gen-pkgs-prompt"
+stage = "generate"
+model = "nemotron35-super-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]

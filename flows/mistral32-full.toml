@@ -1,0 +1,26 @@
+# Toàn bộ 18.033 câu hỏi trên Mistral Small 3.2 24B (DeepInfra), model chính mới theo kế hoạch 25/11/2026.
+# Chi phí ước tính khoảng 4 USD (giá DeepInfra 25/11/2026). Chạy nền: bash scripts/run_bg.sh flows/mistral32-full.toml
+[flow]
+name = "mistral32-full"
+db = "data/slop.sqlite"
+
+[[steps]]
+name = "gen-code"
+stage = "generate"
+model = "mistral-small-32-24b-deepinfra"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+
+[[steps]]
+name = "gen-pkgs-code"
+stage = "generate"
+model = "mistral-small-32-24b-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+
+[[steps]]
+name = "gen-pkgs-prompt"
+stage = "generate"
+model = "mistral-small-32-24b-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]

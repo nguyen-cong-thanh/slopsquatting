@@ -1,0 +1,77 @@
+# Chạy thử 200 câu hỏi (200 câu đầu theo thứ tự cố định) cho 3 model chính mới, đủ 3 tác vụ.
+# Chi phí ước tính khoảng 0,3 USD (giá DeepInfra 25/11/2026). Sau đó chạy flows/label-enrich-glm.toml để gắn nhãn.
+[flow]
+name = "pilot-new-main"
+db = "data/slop.sqlite"
+
+[[steps]]
+name = "mistral-small-32-24b-code"
+stage = "generate"
+model = "mistral-small-32-24b-deepinfra"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "mistral-small-32-24b-pkgs_for_code"
+stage = "generate"
+model = "mistral-small-32-24b-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "mistral-small-32-24b-pkgs_for_prompt"
+stage = "generate"
+model = "mistral-small-32-24b-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "qwen36-35b-a3b-code"
+stage = "generate"
+model = "qwen36-35b-a3b-deepinfra"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "qwen36-35b-a3b-pkgs_for_code"
+stage = "generate"
+model = "qwen36-35b-a3b-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "qwen36-35b-a3b-pkgs_for_prompt"
+stage = "generate"
+model = "qwen36-35b-a3b-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "nemotron35-super-code"
+stage = "generate"
+model = "nemotron35-super-deepinfra"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "nemotron35-super-pkgs_for_code"
+stage = "generate"
+model = "nemotron35-super-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "nemotron35-super-pkgs_for_prompt"
+stage = "generate"
+model = "nemotron35-super-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]
+limit = 200

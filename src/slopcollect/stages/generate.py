@@ -158,16 +158,22 @@ def generate(
     t_start = time.monotonic()
     now_host = ctx.host
 
+    # Gom các câu trả lời trong bộ nhớ rồi ghi một lần (flush): khóa ghi CSDL chỉ giữ trong vài mili giây,
+    # nên nhiều luồng chạy song song trên cùng một CSDL không chặn nhau.
+    buf: list[tuple] = []
+    insert_sql = (
+        "INSERT INTO generations(gen_id, prompt_id, parent_gen_id, task_id, model_key, backend, model_name, params_json, "
+        "params_hash, sample_idx, seed, response_text, reasoning_text, finish_reason, tokens_in, tokens_out, latency_ms, "
+        "error, attempts, host, run_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+        "ON CONFLICT(gen_id) DO UPDATE SET response_text = excluded.response_text, reasoning_text = excluded.reasoning_text, "
+        "finish_reason = excluded.finish_reason, tokens_in = excluded.tokens_in, tokens_out = excluded.tokens_out, "
+        "latency_ms = excluded.latency_ms, error = excluded.error, attempts = generations.attempts + excluded.attempts, "
+        "host = excluded.host, run_id = excluded.run_id, created_at = excluded.created_at "
+        "WHERE generations.error IS NOT NULL"
+    )
+
     def write(it: _Item, res: ChatResult | None, err: str | None, attempts: int) -> None:
-        conn.execute(
-            "INSERT INTO generations(gen_id, prompt_id, parent_gen_id, task_id, model_key, backend, model_name, params_json, "
-            "params_hash, sample_idx, seed, response_text, reasoning_text, finish_reason, tokens_in, tokens_out, latency_ms, "
-            "error, attempts, host, run_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(gen_id) DO UPDATE SET response_text = excluded.response_text, reasoning_text = excluded.reasoning_text, "
-            "finish_reason = excluded.finish_reason, tokens_in = excluded.tokens_in, tokens_out = excluded.tokens_out, "
-            "latency_ms = excluded.latency_ms, error = excluded.error, attempts = generations.attempts + excluded.attempts, "
-            "host = excluded.host, run_id = excluded.run_id, created_at = excluded.created_at "
-            "WHERE generations.error IS NOT NULL",
+        buf.append(
             (
                 it.gen_id,
                 it.prompt_id,
@@ -193,6 +199,12 @@ def generate(
                 utcnow(),
             ),
         )
+
+    def flush() -> None:
+        if buf:
+            conn.executemany(insert_sql, buf)
+            buf.clear()
+        conn.commit()
 
     def progress() -> None:
         n = ok + failed
@@ -249,7 +261,7 @@ def generate(
                                 t = time.monotonic()
                                 if outage_since is None:
                                     outage_since = t
-                                    conn.commit()
+                                    flush()
                                     log.warning("Backend không phản hồi (%s). Tạm dừng, thử lại mỗi %.0f giây; không ghi lỗi.", err[:200], outage_wait_s)
                                 elif t - outage_since > max_outage_hours * 3600:
                                     raise RuntimeError(f"Backend mất kết nối hơn {max_outage_hours} giờ: {err[:200]}")
@@ -273,7 +285,7 @@ def generate(
                         progress()
                     # Ghi CSDL theo thời gian (không phụ thuộc progress_every) để dừng đột ngột không mất nhiều.
                     if time.monotonic() - last_commit >= commit_every_s:
-                        conn.commit()
+                        flush()
                         last_commit = time.monotonic()
                 if fatal and queue:
                     # Lỗi tài khoản: không gửi câu mới; vòng lặp xử lý nốt các câu đang chạy (lưu câu thành công).
@@ -287,7 +299,7 @@ def generate(
                 fut.cancel()
             pool.shutdown(wait=False, cancel_futures=True)
         finally:
-            conn.commit()
+            flush()
     if (ok + failed) % progress_every:
         progress()
     summary.update({"ok": ok, "failed": failed, "elapsed_s": round(time.monotonic() - t_start, 1)})
