@@ -48,24 +48,49 @@ def _cut_info(models, first, **feat):
             "features": {"first_release_at": first, **feat}}
 
 
-def test_after_model_cutoff():
+def _cuts():
     from datetime import datetime, timezone
 
+    from slopcollect.timing import Cutoffs
+
+    d = lambda y, m, dd: datetime(y, m, dd, tzinfo=timezone.utc)  # noqa: E731
+    return Cutoffs(date={"a": d(2023, 12, 31), "b": d(2025, 12, 31), "u": d(2026, 2, 28), "f": d(2023, 10, 31)},
+                   upper={"u"}, released={"a": d(2024, 7, 18), "b": d(2026, 3, 1)})
+
+
+def test_timing_shared_rule():
+    from datetime import datetime, timezone
+
+    from slopcollect.timing import released_before, timing
+
+    c = _cuts()
+    t = lambda s: datetime.fromisoformat(s).replace(tzinfo=timezone.utc)  # noqa: E731
+    # Trong khoảng đệm 30 ngày sau mốc: có từ trước mốc.
+    assert timing(t("2024-01-15"), ["a"], c) == ("before", [])
+    # Chỉ cần MỘT model có mốc + đệm sớm hơn lần tải lên (a), dù b có mốc muộn hơn.
+    assert timing(t("2025-06-01"), ["a", "b"], c) == ("after", ["a"])
+    # Model chưa rõ mốc, không model nào kết luận được "after": không kết luận.
+    assert timing(t("2023-06-01"), ["a", "x"], c)[0] == "unknown"
+    # Mốc chỉ là giới hạn trên: chỉ kết luận "before" khi gói có trước mốc chính xác sớm nhất (31/10/2023).
+    assert timing(t("2025-06-01"), ["u"], c)[0] == "unknown"
+    assert timing(t("2023-06-01"), ["u"], c)[0] == "before"
+    assert timing(None, ["a"], c)[0] == "unknown"
+    assert timing(None, ["a"], c, legacy=True)[0] == "before"
+    # Không có ngày tải lên, nhưng dự án đã tồn tại từ 2019 (sự kiện cuối trên PyPI): có từ trước mốc.
+    assert timing(None, ["a"], c, exists_by=t("2019-08-15"))[0] == "before"
+    # Sự kiện cuối sau mốc: không biết dự án ra đời khi nào, không kết luận được.
+    assert timing(None, ["a"], c, exists_by=t("2025-08-15"))[0] == "unknown"
+    assert released_before(t("2025-06-01"), ["a", "b"], c) == ["a"]
+
+
+def test_after_model_cutoff_is_filter_only():
     from slopcollect.stages.label import rule_after_model_cutoff
 
-    cfg = {"cutoffs": {"a": datetime(2023, 12, 31, tzinfo=timezone.utc), "b": datetime(2025, 12, 31, tzinfo=timezone.utc)}, "cutoff_margin_days": 30}
-    # Ra đời trước mốc (hoặc trong khoảng đệm): không áp dụng.
+    cfg = {"cutoffs": _cuts(), "cutoff_margin_days": 30}
+    # Có từ trước mốc: lọt lưới (luật sau quyết định, thường là real).
     assert rule_after_model_cutoff(_cut_info(["a"], "2024-01-15T00:00:00Z"), cfg) is None
-    # Phải sau mốc của MỌI model đã gợi ý: b có mốc muộn hơn nên không áp dụng.
-    assert rule_after_model_cutoff(_cut_info(["a", "b"], "2025-06-01T00:00:00Z", summary=""), cfg) is None
-    # Model chưa rõ mốc: không áp dụng.
-    assert rule_after_model_cutoff(_cut_info(["a", "x"], "2026-06-01T00:00:00Z", summary=""), cfg) is None
-    # Gói rỗng: tên bịa đã bị đăng ký.
-    lab, review, ev = rule_after_model_cutoff(_cut_info(["a"], "2025-03-15T00:00:00Z", summary="Add your description here"), cfg)
-    assert (lab, review) == ("registered_hallucination", False) and ev["latest_cutoff"] == "2023-12-31"
-    # Gói hợp lệ trùng tên (thuộc tổ chức, nhiều lượt tải): giữ real.
-    lab, review, ev = rule_after_model_cutoff(_cut_info(["a"], "2024-06-25T00:00:00Z", summary="CUDA target for Numba", has_organization=1, downloads_last_month=459353), cfg)
-    assert (lab, review) == ("real", False) and ev["legit"]
-    # Không đủ bằng chứng: cần kiểm chứng tay.
-    lab, review, _ = rule_after_model_cutoff(_cut_info(["a"], "2025-04-23T00:00:00Z", summary="Efficient asyncio based web crawler", n_releases=3), cfg)
-    assert (lab, review) == ("registered_hallucination", True)
+    # Sau mốc của một model hoặc không kết luận được: luôn đưa đi duyệt tay, kể cả gói có vẻ hợp lệ.
+    for models, first in ((["a", "b"], "2025-06-01T00:00:00Z"), (["u"], "2025-06-01T00:00:00Z"), (["a"], None)):
+        lab, review, ev = rule_after_model_cutoff(_cut_info(models, first, has_organization=1, downloads_last_month=459353), cfg)
+        assert (lab, review) == ("registered_hallucination", True)
+    assert ev["timing"] == "unknown"

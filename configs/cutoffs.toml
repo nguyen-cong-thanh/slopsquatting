@@ -2,44 +2,57 @@
 # slopcollect.detect.cutoff. Kiểm tra ngày 14/11/2026.
 # kind = "official": hãng công bố. kind = "community": thông tin cộng đồng, chưa kiểm chứng; khi các nguồn
 # lệch nhau thì lấy mốc muộn hơn (luật ít gắn cờ hơn). Model không có ở đây: chưa rõ mốc, luật không áp dụng.
+# released: ngày tạo kho trọng số trên Hugging Face (API createdAt, tra ngày 26/11/2026), sát và không muộn hơn ngày công bố.
+#   Trọng số không thể chứa dữ liệu sinh ra sau ngày này, nên gói ra đời sau đó là bằng chứng chắc chắn (không phụ thuộc
+#   mốc ước lượng). Kho dùng: tên model trong configs/models/ (Llama bản gốc thay cho bản Turbo; MiMo-V2.6-Pro lấy bản
+#   MOPD 27/09 vì muộn hơn bản RL 21/09; Nemotron 3.5 lấy các bản 120B-A12B ngày 12/10; Qwen3.5 4B lấy Qwen/Qwen3.5-4B).
+# bound = "upper": mốc chỉ là giới hạn trên (ngày phát hành); duyệt tay (quy trình P2) không dùng nó để kết luận gói có trước mốc.
 
 [llama31-8b-deepinfra]
 date = "2023-12-31"
+released = "2024-07-18"
 kind = "official"
 note = "Meta model card Llama 3.1: pretraining data cutoff December 2023"
 
 [llama33-70b-deepinfra]
 date = "2023-12-31"
+released = "2024-11-26"
 kind = "official"
 note = "Meta model card Llama 3.3: pretraining data cutoff December 2023"
 
 [llama4-scout-deepinfra]
 date = "2024-08-31"
+released = "2025-04-02"
 kind = "official"
 note = "Meta, trang model Llama 4: knowledge cutoff August 2024"
 
 [deepseek-v3-deepinfra]
 date = "2024-07-31"
+released = "2024-12-25"
 kind = "community"
 note = "DataLearner: mốc chính thức cuối cùng của DeepSeek là 07/2024 (V3-0324)"
 
 [deepseek-v31-deepinfra]
 date = "2025-07-31"
+released = "2025-08-21"
 kind = "community"
 note = "OpenRouter 03/2025, Digit 07/2025; lấy 07/2025"
 
 [deepseek-v41-flash-deepinfra]
 date = "2026-03-31"
+released = "2026-10-17"
 kind = "community"
 note = "\"đầu 2026\" (gradually.ai, model tự khai bằng tiếng Anh); lấy hết 03/2026"
 
 [glm53-internal]
 date = "2025-12-31"
+released = "2026-08-25"
 kind = "community"
 note = "innfactory: cuối 2025 (Roboflow 03/2026 là cho bản Flash)"
 
 [glm53-deepinfra]
 date = "2025-12-31"
+released = "2026-08-25"
 kind = "community"
 note = "như glm53-internal"
 
@@ -47,46 +60,57 @@ note = "như glm53-internal"
 
 [mistral-small-32-24b-deepinfra]
 date = "2023-10-31"
+released = "2025-06-19"
 kind = "community"
 note = "OpenRouter và LLM Stats: 10/2023 (Mistral không công bố)"
 
 [mistral-small-24b-2501-deepinfra]
 date = "2023-10-31"
+released = "2025-01-28"
 kind = "community"
 note = "OpenRouter 31/10/2023; system prompt Mistral khuyến nghị ghi 2023-10-01; lấy mốc muộn hơn"
 
 [qwen36-35b-a3b-deepinfra]
 date = "2026-02-28"
+released = "2026-04-15"
 kind = "community"
 note = "metehan.ai (06/2026) khoảng 02/2026; một tracker khác ghi 10/2025 (độ tin thấp); Alibaba không công bố; lấy mốc muộn hơn"
 
 [qwen35-35b-a3b-deepinfra]
 date = "2026-02-28"
+released = "2026-02-24"
+bound = "upper"  # chỉ là giới hạn trên (ngày phát hành), mốc thật có thể sớm hơn
 kind = "community"
 note = "không có nguồn cho bản 35B-A3B; metehan.ai ghi Qwen3.5 397B là \"2026\"; phát hành 02/2026 nên lấy hết 02/2026 làm giới hạn trên"
 
 [qwen3-30b-a3b-deepinfra]
 date = "2025-03-31"
+released = "2025-04-27"
 kind = "community"
 note = "metehan.ai theo OpenRouter: Qwen3 (235B, 32B, 30B-A3B) 31/03/2025; bản 2507 là 30/06/2025, không dùng ở đây"
 
 [nemotron35-super-deepinfra]
 date = "2025-12-31"
+released = "2026-10-12"
 kind = "official"
 note = "NVIDIA build.nvidia.com, Nemotron 3.5 Super VL 120B-A12B (đúng bản trên DeepInfra): foundation data collection 2013 đến 12/2025"
 
 [nemotron3-super-deepinfra]
 date = "2025-06-30"
+released = "2026-03-10"
 kind = "official"
 note = "NVIDIA model card Nemotron 3 Super 120B-A12B: pre-training 06/2025, post-training 02/2026; lấy mốc pre-training như các model khác"
 
 [deepseek-v4-flash-deepinfra]
 date = "2025-05-31"
+released = "2026-04-22"
 kind = "community"
 note = "DataLearner: DeepSeek-V4-Flash-Base 05/2025; bản chat không có số liệu; DeepSeek không công bố"
 
 [glm52-deepinfra]
 date = "2025-12-31"
+released = "2026-06-16"
+bound = "upper"  # chỉ là giới hạn trên (ngày phát hành), mốc thật có thể sớm hơn
 kind = "community"
 note = "không có nguồn; cùng nền với GLM 5.3 (mốc cộng đồng cuối 2025) và phát hành trước, nên lấy mốc của 5.3 làm giới hạn trên"
 
@@ -94,10 +118,35 @@ note = "không có nguồn; cùng nền với GLM 5.3 (mốc cộng đồng cu�
 
 [mimo-v26-pro-deepinfra]
 date = "2026-09-21"
+released = "2026-09-27"
+bound = "upper"  # chỉ là giới hạn trên (ngày phát hành), mốc thật có thể sớm hơn
 kind = "community"
 note = "Xiaomi không công bố (DeepLearning.AI: undisclosed); lấy ngày phát hành trọng số 21/09/2026 làm giới hạn trên"
 
 [mimo-v25-pro-deepinfra]
 date = "2026-04-28"
+released = "2026-04-27"
+bound = "upper"  # chỉ là giới hạn trên (ngày phát hành), mốc thật có thể sớm hơn
 kind = "community"
 note = "system prompt mẫu trên trang MiMo ghi 12/2024 (không chính thức); lấy ngày phát hành 28/04/2026 làm giới hạn trên (mốc muộn hơn)"
+
+# --- Thêm 26/11/2026: các model đo độ bền còn thiếu mốc (phát hiện khi kiểm lại nhãn theo quy trình P1) ---
+
+[deepseek-v32-deepinfra]
+date = "2025-07-31"
+released = "2025-12-01"
+kind = "community"
+note = "không có nguồn riêng; V3.2 dựng trên V3.1-Terminus nên lấy mốc của V3.1 (07/2025)"
+
+[deepseek-v4-flash-0731-deepinfra]
+date = "2025-05-31"
+released = "2026-07-31"
+kind = "community"
+note = "bản tinh chỉnh của V4 Flash nên lấy mốc của V4-Flash-Base theo DataLearner (05/2025)"
+
+[qwen35-4b-kali]
+date = "2026-02-28"
+released = "2026-02-27"
+bound = "upper"  # chỉ là giới hạn trên (ngày phát hành), mốc thật có thể sớm hơn
+kind = "community"
+note = "Qwen3.5 4B chạy thử trên máy kali; như qwen35-35b-a3b (giới hạn trên là tháng phát hành 02/2026)"

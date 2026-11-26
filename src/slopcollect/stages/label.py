@@ -8,6 +8,8 @@ Nhãn:
   known_malicious           có trong danh sách gói độc hại đã biết
   stdlib                    tên module thư viện chuẩn (json, os...): không phải tên bịa, PyPI cấm đăng ký
   unlabeled                 có trên PyPI nhưng chưa có metadata để quyết định
+  uncertain                 duyệt tay không kết luận được (quy trình P2, docs/du-lieu/quy-trinh-gan-nhan-thu-cong.md);
+                            chỉ đến từ overrides, bị loại khỏi phân tích chính
 
 Các nhãn đoán bằng heuristic được đánh dấu needs_review và xuất ra CSV để duyệt tay. Kết quả duyệt
 (cột override_label) được đọc lại qua tham số overrides_csv và áp trước mọi luật khác.
@@ -24,6 +26,7 @@ from typing import Any
 from slopcollect import registry
 from slopcollect.db import latest_snapshot
 from slopcollect.registry import register
+from slopcollect.timing import load_cutoffs, released_before, timing
 from slopcollect.util import parse_time, utcnow
 
 DEFAULT_RULES = [
@@ -55,12 +58,15 @@ DEFAULT_PLACEHOLDER_PATTERNS = [
     r"\bnot the package you\b",
 ]
 
-# rules-v3: thêm after_model_cutoff (gói ra đời sau mốc dữ liệu của mọi model đã gợi ý nó).
+# rules-v3 (từ 26/11/2026, quy trình P3): after_model_cutoff chỉ còn là lưới lọc dùng chung tiêu chí thời gian với cây
+# quyết định duyệt tay (slopcollect.timing), không tự quyết nhãn nữa. Tên phiên bản giữ nguyên để các phân tích đã có
+# đọc nhãn mới; lịch sử thay đổi ở mục 8 của tài liệu quy trình.
+# rules-v3 (14/11/2026): thêm after_model_cutoff (gói ra đời sau mốc dữ liệu của mọi model đã gợi ý nó).
 # rules-v1: bản đầu. rules-v2: gói thật chỉ bị chiếm quyền vài phiên bản không còn là known_malicious;
 # luật placeholder chỉ xét tóm tắt và mô tả ngắn (bản v1 sai khoảng 95% trên mẫu duyệt tay).
 LABELER_VERSION = "rules-v3"
 
-LABELS = {"real", "hallucinated_absent", "registered_hallucination", "placeholder", "known_malicious", "unlabeled", "stdlib"}
+LABELS = {"real", "hallucinated_absent", "registered_hallucination", "placeholder", "known_malicious", "unlabeled", "stdlib", "uncertain"}
 
 Verdict = tuple[str, bool, dict[str, Any]]
 
@@ -150,46 +156,25 @@ def rule_after_cutoff(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | No
     return None
 
 
-# Bằng chứng cho luật after_model_cutoff, đặt trước khi xem kết quả (14/11/2026).
-TEMPLATE_SUMMARIES = {"", "unknown", "add your description here", "a template for projects that will be distributed on pypi.",
-                      "a small example package", "a sample python project", "my package", "test", "test package"}
-TRIVIAL_VERSIONS = {"0.0.0", "0.0.1", "0.0.1a0", "0.1", "0.1.0", "1.0.0"}
-
-
 @register("label_rule", "after_model_cutoff")
 def rule_after_model_cutoff(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
-    """Gói ra đời (lần tải lên đầu, kể cả bản đã xóa) sau mốc dữ liệu của MỌI model đã gợi ý nó, cộng khoảng đệm:
-    model không thể biết gói này, nên tên do model bịa ra rồi mới có người đăng ký. Bằng chứng quyết định
-    ý đồ: gói rỗng/giữ chỗ -> registered_hallucination; gói hợp lệ trùng tên -> real; còn lại cần kiểm chứng."""
-    cuts, models = cfg.get("cutoffs") or {}, info.get("models") or set()
-    if not models or any(m not in cuts for m in models):
-        return None  # có model chưa rõ mốc
+    """Lưới lọc theo thời gian (quy trình P3, bước 2): đưa đi duyệt tay mọi tên mà tiêu chí thời gian của cây quyết định
+    không kết luận được là "có từ trước mốc" (slopcollect.timing, dùng chung với review.evidence). Luật chỉ lọc, không
+    quyết định: nhãn tạm là registered_hallucination, needs_review, và nhãn cuối do người duyệt ghi vào overrides.
+
+    Tên lọt qua lưới (timing = before) có từ trước mốc của mọi model đã gợi ý nó, nên không thể là tên bị chiếm.
+    """
+    cut = cfg.get("cutoffs")
+    models = info.get("models") or set()
+    if not cut or not any(m in cut.date for m in models):
+        return None  # không model nào có mốc trong configs/cutoffs.toml (vd model giả khi test): luật không áp dụng
     f = info["features"]
     first = parse_time(f.get("first_release_at"))
-    latest = max(cuts[m] for m in models)
-    if not first or first <= latest + timedelta(days=cfg["cutoff_margin_days"]):
+    verdict, pre = timing(first, models, cut, margin_days=cfg["cutoff_margin_days"])
+    if verdict == "before":
         return None
-    ev: dict[str, Any] = {"first_release_at": f.get("first_release_at"), "latest_cutoff": latest.date().isoformat(), "models": sorted(models)}
-    legit = []
-    if f.get("has_organization"):
-        legit.append("thuộc tổ chức trên PyPI")
-    if f.get("source_repo_verified"):
-        legit.append("link kho mã đã xác minh")
-    if (f.get("n_releases") or 0) >= 5 and (f.get("github_stars") or 0) >= 10:
-        legit.append(">= 5 bản phát hành và >= 10 sao GitHub")
-    if (f.get("downloads_last_month") or 0) >= 100_000:
-        legit.append(">= 100k lượt tải/tháng")
-    squat = []
-    if (f.get("summary") or "").strip().lower() in TEMPLATE_SUMMARIES:
-        squat.append("tóm tắt trống hoặc mẫu")
-    if (f.get("n_releases") or 0) == 1 and (info.get("version") or "") in TRIVIAL_VERSIONS and (f.get("description_len") or 0) < 300:
-        squat.append("một bản phát hành tầm thường, mô tả ngắn")
-    ev.update(squat=squat, legit=legit)
-    if legit and not squat:
-        return ("real", False, ev)
-    if squat and not legit:
-        return ("registered_hallucination", False, ev)
-    ev["why"] = "chưa đủ bằng chứng (hoặc bằng chứng mâu thuẫn): kiểm chứng tay"
+    ev: dict[str, Any] = {"timing": verdict, "first_release_at": f.get("first_release_at"), "models": sorted(models),
+                          "pre_registration_models": pre, "released_before_upload": released_before(first, models, cut)}
     return ("registered_hallucination", True, ev)
 
 
@@ -210,14 +195,6 @@ def rule_young_low_downloads(info: dict[str, Any], cfg: dict[str, Any]) -> Verdi
 @register("label_rule", "real")
 def rule_real(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
     return ("real", False, info.get("compromised") or {})
-
-
-def _read_cutoffs(path: Any) -> dict[str, datetime]:
-    import tomllib
-
-    with open(path, "rb") as f:
-        data = tomllib.load(f)
-    return {m: datetime.fromisoformat(v["date"]).replace(tzinfo=timezone.utc) for m, v in data.items()}
 
 
 def _read_overrides(path: Any) -> dict[str, dict[str, str]]:
@@ -273,7 +250,7 @@ def label(
         "max_downloads_last_month": max_downloads_last_month,
         "placeholder_patterns": placeholder_patterns or DEFAULT_PLACEHOLDER_PATTERNS,
         "placeholder_max_desc": placeholder_max_desc,
-        "cutoffs": _read_cutoffs(ctx.path(cutoffs_file)) if cutoffs_file and ctx.path(cutoffs_file).exists() else {},
+        "cutoffs": load_cutoffs(ctx.path(cutoffs_file)) if cutoffs_file and ctx.path(cutoffs_file).exists() else None,
         "cutoff_margin_days": cutoff_margin_days,
         "hallucination_lists": hallucination_lists or ["0pstech", "depscope"],
         "malicious_lists": malicious_lists or ["datadog", "osv_malicious"],
