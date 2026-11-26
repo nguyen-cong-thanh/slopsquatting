@@ -27,13 +27,14 @@ METHODS = ("pip_install", "llm_list")
 HALLUCINATED = ("hallucinated_absent", "registered_hallucination")
 N_SAMPLES = 10
 
-# Năm model chính (kế hoạch 25/11/2026), dùng để đếm số model cùng bịa ra một tên. Llama 3.1 8B chỉ còn là đối chứng.
+# Năm model chính (kế hoạch 25/11/2026; MiMo-V2.6-Pro thay GLM 5.3 ngày 26/11/2026), dùng để đếm số model cùng
+# bịa ra một tên. Llama 3.1 8B và GLM 5.3 chỉ còn là đối chứng.
 MAIN_MODELS = (
     "mistral-small-32-24b-deepinfra",
     "qwen36-35b-a3b-deepinfra",
     "nemotron35-super-deepinfra",
     "deepseek-v41-flash-deepinfra",
-    "glm53-internal",
+    "mimo-v26-pro-deepinfra",
 )
 
 # Họ model: bản gốc -> các phiên bản khác cùng cỡ (cũ hơn), kèm thời điểm phát hành khi biết chắc.
@@ -64,8 +65,13 @@ FAMILIES = {
             "deepseek-v32-deepinfra": "DeepSeek V3.2 (12/2025, khác cỡ)",
         },
     },
+    "mimo-v26-pro-deepinfra": {
+        "label": "MiMo-V2.6-Pro 1T-A42B (09/2026)",
+        "versions": {"mimo-v25-pro-deepinfra": "MiMo-V2.5-Pro 1T-A42B (04/2026)"},
+    },
+    # Đối chứng (bỏ khỏi nhóm chính 26/11/2026 vì chi phí).
     "glm53-internal": {
-        "label": "GLM 5.3",
+        "label": "GLM 5.3 (đối chứng)",
         "reask": "glm53-deepinfra",
         "versions": {"glm52-deepinfra": "GLM 5.2 (06/2026)"},
     },
@@ -182,7 +188,7 @@ def to_md(res: dict) -> str:
             note = "" if v.get("complete") else " (chưa đủ dữ liệu)"
             L.append(f"| {v['label']}{note} | {v['repeat']} | {v['any']} | {v['hallucination_share_of_mentions']} | "
                      f"{v['own_also_by_base']} ({v['own_hallucinated_names']} tên) |")
-        L.append("\nÍt nhất một lần, theo số model chính (Mistral 3.2, Qwen3.6, Nemotron 3.5, DeepSeek V4.1, GLM 5.3) cùng bịa ra tên:\n")
+        L.append("\nÍt nhất một lần, theo số model chính (Mistral 3.2, Qwen3.6, Nemotron 3.5, DeepSeek V4.1, MiMo-V2.6-Pro) cùng bịa ra tên:\n")
         rows = [("bản gốc", fam["base"])] + [(v["label"], v) for v in fam["versions"].values() if v.get("pairs")]
         for lab, x in rows:
             L.append(f"- {lab}: " + ", ".join(f"{i} model: {g['any']} ({g['pairs']} cặp)" for i, g in x["any_by_n_models"].items()))

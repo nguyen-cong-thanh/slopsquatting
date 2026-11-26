@@ -1,0 +1,26 @@
+# Toàn bộ 18.033 câu hỏi trên MiMo-V2.6-Pro (DeepInfra), model chính thay GLM 5.3 (26/11/2026).
+# Chi phí ước tính khoảng 18 USD (tính từ lần chạy thử 200 câu). Chạy nền: bash scripts/run_bg.sh flows/mimo-full.toml
+[flow]
+name = "mimo-full"
+db = "data/slop.sqlite"
+
+[[steps]]
+name = "mimo-v26-pro-deepinfra-code"
+stage = "generate"
+model = "mimo-v26-pro-deepinfra"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+
+[[steps]]
+name = "mimo-v26-pro-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "mimo-v26-pro-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+
+[[steps]]
+name = "mimo-v26-pro-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "mimo-v26-pro-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]

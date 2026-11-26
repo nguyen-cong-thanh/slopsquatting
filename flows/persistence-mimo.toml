@@ -1,0 +1,28 @@
+# Độ bền: hỏi MiMo-V2.5-Pro (cùng cỡ 1,02T / 42B, bản cũ) đúng những câu đã chọn ở variants-v1 cho MiMo-V2.6-Pro,
+# mỗi câu 10 lần, theo cả ba tác vụ. Chi phí ước tính khoảng 3 USD. Sau đó chạy flows/label-enrich-glm.toml.
+[flow]
+name = "persistence-mimo"
+db = "data/slop.sqlite"
+
+[[steps]]
+name = "mimo-v25-pro-deepinfra-code"
+stage = "generate"
+model = "mimo-v25-pro-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:mimo-v26-pro-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "mimo-v25-pro-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "mimo-v25-pro-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:mimo-v26-pro-deepinfra"]
+
+[[steps]]
+name = "mimo-v25-pro-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "mimo-v25-pro-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:mimo-v26-pro-deepinfra"]
+n_samples = 10

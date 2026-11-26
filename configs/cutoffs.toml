@@ -89,3 +89,15 @@ note = "DataLearner: DeepSeek-V4-Flash-Base 05/2025; bản chat không có số 
 date = "2025-12-31"
 kind = "community"
 note = "không có nguồn; cùng nền với GLM 5.3 (mốc cộng đồng cuối 2025) và phát hành trước, nên lấy mốc của 5.3 làm giới hạn trên"
+
+# --- Thêm 26/11/2026: MiMo-V2.6-Pro thay GLM 5.3 làm model chính ---
+
+[mimo-v26-pro-deepinfra]
+date = "2026-09-21"
+kind = "community"
+note = "Xiaomi không công bố (DeepLearning.AI: undisclosed); lấy ngày phát hành trọng số 21/09/2026 làm giới hạn trên"
+
+[mimo-v25-pro-deepinfra]
+date = "2026-04-28"
+kind = "community"
+note = "system prompt mẫu trên trang MiMo ghi 12/2024 (không chính thức); lấy ngày phát hành 28/04/2026 làm giới hạn trên (mốc muộn hơn)"

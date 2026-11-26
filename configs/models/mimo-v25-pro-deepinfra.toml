@@ -1,0 +1,18 @@
+description = "Xiaomi MiMo-V2.5-Pro (1,02T / 42B), bản cũ cùng cỡ để đo độ bền của MiMo-V2.6-Pro, qua DeepInfra. Khóa API đọc từ file, không nằm trong repo."
+backend = "openai_compat"
+base_url = "https://api.deepinfra.com/v1/openai"
+model = "XiaomiMiMo/MiMo-V2.5-Pro"
+api_key_env = "DEEPINFRA_API_KEY"
+api_key_file = "~/.config/deepinfra/api_key"
+concurrency = 128
+timeout_s = 300
+
+[params]
+seed_mode = "per_sample"
+# Có chế độ suy nghĩ: tắt bằng chat_template_kwargs.enable_thinking = false (đã thử 26/11/2026: 0 token suy nghĩ).
+think = false
+
+[extra]
+think_style = "chat_template_kwargs"
+send_top_k = true
+send_seed = true

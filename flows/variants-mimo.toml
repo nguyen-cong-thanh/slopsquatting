@@ -1,0 +1,34 @@
+# Hỏi lại câu gốc cho 250 tên bịa của MiMo-V2.6-Pro, mỗi câu tổng cộng 10 lần, theo cả ba tác vụ.
+# Chạy sau khi đã gắn nhãn dữ liệu đầy đủ của MiMo. Chi phí ước tính khoảng 2 USD.
+[flow]
+name = "variants-mimo"
+db = "data/slop.sqlite"
+
+[[steps]]
+stage = "select_variants"
+selection_id = "variants-v1"
+models = ["mimo-v26-pro-deepinfra"]
+n = 250
+
+[[steps]]
+name = "mimo-v26-pro-deepinfra-code"
+stage = "generate"
+model = "mimo-v26-pro-deepinfra"
+task = "spracklen_code_v1"
+tags = ["sel:variants-v1:mimo-v26-pro-deepinfra"]
+n_samples = 10
+
+[[steps]]
+name = "mimo-v26-pro-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "mimo-v26-pro-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["sel:variants-v1:mimo-v26-pro-deepinfra"]
+
+[[steps]]
+name = "mimo-v26-pro-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "mimo-v26-pro-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["sel:variants-v1:mimo-v26-pro-deepinfra"]
+n_samples = 10

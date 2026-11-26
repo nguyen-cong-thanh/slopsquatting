@@ -1,0 +1,29 @@
+# Chạy thử 200 câu hỏi (200 câu đầu theo thứ tự cố định) cho MiMo-V2.6-Pro, model chính thay GLM 5.3, đủ 3 tác vụ.
+# Chi phí ước tính khoảng 0,2 USD (giá DeepInfra 26/11/2026). Sau đó chạy flows/label-enrich-glm.toml để gắn nhãn.
+[flow]
+name = "pilot-mimo"
+db = "data/slop.sqlite"
+
+[[steps]]
+name = "mimo-v26-pro-deepinfra-code"
+stage = "generate"
+model = "mimo-v26-pro-deepinfra"
+task = "spracklen_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "mimo-v26-pro-deepinfra-pkgs_for_code"
+stage = "generate"
+model = "mimo-v26-pro-deepinfra"
+task = "spracklen_pkgs_for_code_v1"
+tags = ["spracklen"]
+limit = 200
+
+[[steps]]
+name = "mimo-v26-pro-deepinfra-pkgs_for_prompt"
+stage = "generate"
+model = "mimo-v26-pro-deepinfra"
+task = "spracklen_pkgs_for_prompt_v1"
+tags = ["spracklen"]
+limit = 200
