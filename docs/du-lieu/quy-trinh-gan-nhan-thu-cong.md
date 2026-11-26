@@ -17,7 +17,7 @@ Mọi tên model gợi ý
 └─ Tên có trên PyPI
      │
      ├─ BƯỚC 2. Lưới lọc (máy): tên có đáng ngờ không? (mục 3)
-     │    không đáng ngờ → real (không ai đọc)
+     │    không đáng ngờ → pre_cutoff_unverified (không kiểm nội dung)
      │    đáng ngờ       → bước 3
      │
      ├─ BƯỚC 3. Duyệt từng tên đáng ngờ
@@ -25,7 +25,7 @@ Mọi tên model gợi ý
      │    3b. Máy đề xuất nhãn theo cây quyết định (mục 6)
      │    3c. Người đọc MỌI tên, quyết định nhãn, ghi vào overrides.csv (mục 7)
      │
-     └─ BƯỚC 4. Kiểm chất lượng: người thứ hai dán nhãn mù một mẫu, đo kappa (mục 8)
+     └─ BƯỚC 4. Kiểm chất lượng: người thứ hai đọc mù lại toàn bộ, đo kappa (mục 8)
 
 Chạy lại bước label: nhãn trong overrides.csv được áp trước mọi luật của máy.
 ```
@@ -37,7 +37,7 @@ Lệnh chạy theo thứ tự:
 | 1–2 | `python -m slopcollect --db data/slop.sqlite stage label` | bảng `labels`; tên đáng ngờ chưa duyệt có `needs_review = 1` |
 | 3a–3b | `python -m slopcollect.review.evidence` | phiếu duyệt `data/review/review_P3.csv` |
 | 3c | người duyệt đọc phiếu, ghi `data/review/overrides.csv` | rồi chạy lại lệnh của bước 1–2 |
-| 4 | `python -m slopcollect.review.agreement sample`, sau đó `… kappa` | mẫu cho người thứ hai, hệ số kappa |
+| 4 | `python -m slopcollect.review.agreement sample --all`, sau đó `… kappa` | phiếu cho người thứ hai, hệ số kappa |
 | báo cáo | `python -m slopcollect.review.summary` | số nhãn, độ nhạy theo mốc (mục 5) |
 
 ## 2. Các nhãn
@@ -45,7 +45,8 @@ Lệnh chạy theo thứ tự:
 | Nhãn | Định nghĩa vận hành |
 |---|---|
 | `hallucinated_absent` | Tên không có trên PyPI: model bịa ra và chưa ai đăng ký. |
-| `real` | Gói có **nội dung chức năng** (mục 6.1), và nội dung đó **khớp với điều gói tự nhận** (mục 6.2). Nếu tên trùng với một tên bịa thì coi là trùng hợp: người khác đã dùng tên đó cho một dự án thật. |
+| `pre_cutoff_unverified` | Có trên PyPI, lọt lưới lọc (bước 2): gói có từ trước mốc dữ liệu của mọi model đã gợi ý nó. **Không kiểm nội dung** (quyết định ngày 26/11/2026, vì khối lượng quá lớn). Chắc chắn không phải tên bịa đã bị đăng ký, nhưng **không** được coi là gói thật: trong nhóm này vẫn có thể có gói rỗng, gói giữ chỗ, hay gói xấu chưa bị phát hiện. |
+| `real` | Đã duyệt (bước 3). Gói có **nội dung chức năng** (mục 6.1), và nội dung đó **khớp với điều gói tự nhận** (mục 6.2). Nếu tên trùng với một tên bịa thì coi là trùng hợp: người khác đã dùng tên đó cho một dự án thật. |
 | `registered_hallucination` (bị chiếm tên) | Gói **không có nội dung chức năng**, **không phải** bản phòng vệ, và được đăng ký **sau khi** ít nhất một model đã nói ra cái tên (mục 5). Nhãn mô tả **tình trạng của tên**: một người lạ đang giữ tên bịa mà không đặt nội dung gì vào. Nhãn không khẳng định người giữ có ý đồ xấu. |
 | `placeholder` (giữ chỗ) | Gói không có nội dung chức năng **riêng**, và rơi vào một trong hai trường hợp. (a) **Bản phòng vệ**: trỏ sang gói đúng; do chủ dự án liên quan giữ (tổ chức, hãng, người duy trì); hoặc do nhà nghiên cứu bảo mật giữ, kèm lời ghi rõ là vô hại hay để chống chiếm tên. (b) **Có từ trước** mốc dữ liệu của mọi model đã gợi ý nó, nên model có thể đã thấy tên trên PyPI chứ không tự bịa. |
 | `uncertain` (không chắc) | Bằng chứng thiếu hoặc mâu thuẫn. Báo cáo riêng, loại khỏi các phân tích chính. |
@@ -62,11 +63,11 @@ Một tên có trên PyPI được đưa đi duyệt nếu thỏa **ít nhất m
 | `placeholder` | Tóm tắt, hoặc mô tả ngắn dưới 400 ký tự, có cụm kiểu giữ chỗ: "deprecated", "use X instead", "reserved", "security holding"… |
 | `known_hallucination` | Tên có trong danh sách tên bịa đã công bố (0pstech, DepScope). |
 | `young_low_downloads` | Gói ra đời trong 180 ngày gần nhất và có từ 1.000 lượt tải/tháng trở xuống. |
-| (thêm khi lập phiếu) | Gói đang là `real` mà tóm tắt có lời phòng vệ mạnh (mục 4); và mọi tên đã duyệt ở các đợt trước. |
+| (thêm khi lập phiếu) | Gói đang là `pre_cutoff_unverified` mà tóm tắt có lời phòng vệ mạnh (mục 4); và mọi tên đã duyệt ở các đợt trước. |
 
-Tên **không** thỏa điều kiện nào thì được gán `real` mà không ai đọc. Lưới lọc đặt như vậy để đảm bảo một điều: **tên lọt lưới không thể là `registered_hallucination`**. Lý do là luật `after_model_cutoff` dùng **cùng một hàm** (`slopcollect.timing`) với cây quyết định ở bước 3, nên mọi tên mà cây quyết định có thể gán S đều bị lưới giữ lại.
+Tên **không** thỏa điều kiện nào thì được gán `pre_cutoff_unverified` và không ai đọc. Lưới lọc đặt như vậy để đảm bảo một điều: **tên lọt lưới không thể là `registered_hallucination`**. Lý do là luật `after_model_cutoff` dùng **cùng một hàm** (`slopcollect.timing`) với cây quyết định ở bước 3, nên mọi tên mà cây quyết định có thể gán S đều bị lưới giữ lại.
 
-Giới hạn: một số tên lọt lưới có thể là gói rỗng có từ trước mốc. Theo cây quyết định, các tên này lẽ ra là `placeholder` (E), nhưng ở đây chúng mang nhãn `real`. Sai lệch này không ảnh hưởng tới lớp `registered_hallucination`.
+Giới hạn: nhóm lọt lưới không được kiểm nội dung, nên có thể chứa gói rỗng (lẽ ra là `placeholder`, mã E), gói phòng vệ hay gói xấu. Phân tích cần lớp "gói thật" chỉ dùng các tên `real` đã duyệt. Giới hạn này không ảnh hưởng tới lớp `registered_hallucination`.
 
 ## 4. Bước 3a: bằng chứng thu cho mỗi tên
 
@@ -127,7 +128,7 @@ Hai cách này **không đổi nhãn**. Chúng cho biết bao nhiêu nhãn S cò
 **Gói có nội dung chức năng** nếu thỏa **một** trong các điều kiện:
 1. Có từ **20 dòng** code chức năng trở lên, hoặc từ **20 dòng** mã nguồn ngôn ngữ khác trở lên.
 2. Có phần đã biên dịch từ **10 KB** trở lên, hoặc tệp thực thi đóng kèm từ **1 MB** trở lên, **và** có mô tả hoặc kho mã cho biết phần đó làm gì. Nếu không có mô tả lẫn kho mã thì gán `uncertain`, vì không kiểm được nội dung.
-3. **Gói meta:** không có code nhưng khai báo phụ thuộc, và mô tả nói rõ mục đích là cài các gói đó. Ví dụ: `cuda-toolkit` của NVIDIA.
+3. **Gói meta:** không có code nhưng khai báo phụ thuộc, và mô tả nói rõ mục đích là cài các gói đó. Ví dụ: gói của một hãng chỉ khai báo các gói thành phần của bộ công cụ làm phụ thuộc.
 4. **Gói dữ liệu:** nội dung nằm trong tệp dữ liệu (JSON, bảng) và khớp với mô tả.
 5. Chức năng nằm trong `setup.py` (ví dụ tải dữ liệu khi cài) và khớp với mô tả.
 6. **Dưới ngưỡng nhưng code làm đúng việc mô tả**, ví dụ một hàm 10 dòng đổi mã màu hex sang RGB. Người duyệt phải ghi lý do.
@@ -138,10 +139,10 @@ Hai cách này **không đổi nhãn**. Chúng cho biết bao nhiêu nhãn S cò
 
 - **Gói tự nhận làm gì** được xác định từ tóm tắt và mô tả (README). Nếu gói không có cả hai thì dùng tên gói.
 - **Code làm gì** được xác định từ dàn ý code (`outline`). Nếu dàn ý chưa đủ rõ thì đọc file chính trên trang PyPI hoặc trong kho mã.
-- **Khớp:** chức năng chính của code nằm trong phạm vi mà tóm tắt **hoặc** mô tả nêu ra. Chỉ cần một trong hai, vì tóm tắt hay bị bỏ quên khi gói đổi hướng. Ví dụ: `groovy` của Gradio vẫn để tóm tắt cũ về chống SSRF, trong khi README và code đều là bộ chuyển Python sang JavaScript. Không đòi code làm đủ mọi điều mô tả hứa: gói đang làm dở vẫn tính là khớp.
-- **Không khớp:** code làm một việc khác hẳn cả tóm tắt lẫn mô tả. Ví dụ: tóm tắt ghi "AUC network" nhưng code là máy tính cộng trừ.
+- **Khớp:** chức năng chính của code nằm trong phạm vi mà tóm tắt **hoặc** mô tả nêu ra. Chỉ cần một trong hai, vì tóm tắt hay bị bỏ quên khi gói đổi hướng. Ví dụ: tóm tắt vẫn ghi mục đích cũ của dự án, trong khi README và code đều đã chuyển sang việc khác. Không đòi code làm đủ mọi điều mô tả hứa: gói đang làm dở vẫn tính là khớp.
+- **Không khớp:** code làm một việc khác hẳn cả tóm tắt lẫn mô tả. Ví dụ: tóm tắt ghi "thư viện xử lý ảnh" nhưng code là trình tải nhạc.
 - **Không có tóm tắt lẫn mô tả:** so code với tên gói. Nếu tên không nói lên chức năng gì thì code phải là một chương trình có chủ đích rõ ràng, không phải code mẫu.
-- **Bắt chước:** gói chép đặc điểm của một gói nổi tiếng (tên, số phiên bản, mô tả) mà code chỉ ở mức tối thiểu; hoặc gói là **bản sao nguyên vẹn của một gói khác** đăng dưới một tên không liên quan. Ví dụ: `fiddler` chứa nguyên gói `oso` 0.11.1, kể cả tên tác giả "Oso Security, Inc.".
+- **Bắt chước:** gói chép đặc điểm của một gói nổi tiếng (tên, số phiên bản, mô tả) mà code chỉ ở mức tối thiểu; hoặc gói là **bản sao nguyên vẹn của một gói khác** đăng dưới một tên không liên quan. Ví dụ: một gói chứa nguyên mã của một thư viện nổi tiếng, kể cả tên tác giả và link kho mã của thư viện đó.
 - **Mã đã làm rối hoặc mã hóa** (pyarmor, tệp `.dat` cần trình giải mã): không đọc được nên không kiểm được, gán `uncertain` (U).
 
 ### 6.3. Cây quyết định
@@ -186,11 +187,14 @@ Bước `label` áp các nhãn này trước mọi luật khác. Kết quả c�
 ## 8. Bước 4: kiểm soát chất lượng
 
 - **Người duyệt thứ nhất (R1)** đọc toàn bộ phạm vi (bước 3c). Ở đợt P3, R1 là trợ lý AI (Claude) làm việc theo đúng tài liệu này; bài báo phải ghi rõ điều đó, và vì vậy phép đo đồng ý với người duyệt thứ hai là bắt buộc.
-- **Người duyệt thứ hai (R2)** duyệt độc lập một mẫu 100 tên, phân tầng theo nhãn của R1. R2 chỉ thấy bằng chứng, không thấy nhãn của R1, và chỉ dùng tài liệu này.
-  - **File mẫu:** `data/review/R2_sample_P3.csv`, tạo bằng `python -m slopcollect.review.agreement sample`. Mẫu gồm 30 tên `real`, 30 `registered_hallucination`, 30 `placeholder` và 10 `uncertain` theo nhãn của R1, đã trộn thứ tự. File mở được bằng Excel.
-  - **Cách điền:** R2 đọc bằng chứng trong file, có thể mở trang `pypi_url` và kho mã, nhưng **không cài gói**. Sau đó R2 điền `r2_label` (`real`, `registered_hallucination`, `placeholder` hoặc `uncertain`), `r2_criterion` (D, R, M, S, E hoặc U) và `r2_note` (lý do ngắn).
-  - **Tính kết quả:** `python -m slopcollect.review.agreement kappa` in tỷ lệ đồng ý, Cohen's kappa, bảng chéo và các tên hai người khác nhau.
-- Những tên hai người khác nhau được bàn để thống nhất. Bài báo báo cáo kappa **trước** khi thống nhất, và số tên đã đổi nhãn sau khi thống nhất.
+- **Người duyệt thứ hai (R2)** đọc độc lập **toàn bộ** các tên R1 đã đọc (duyệt kép, không lấy mẫu). R2 chỉ thấy bằng chứng, không thấy nhãn của R1, và chỉ dùng mục 1–8 của tài liệu này.
+  - **File:** `data/review/R2_P3.csv`, đã trộn thứ tự, mở được bằng Excel. Tạo bằng `python -m slopcollect.review.agreement sample --all`.
+  - **File khóa** `R2_P3_key.csv` ghi nhóm khó của từng tên: S, D, `uncertain`, R1 khác đề xuất của công cụ, sát ngưỡng. **Không gửi file khóa cho R2.**
+  - **Cách điền:** R2 đọc bằng chứng trong file, có thể mở trang `pypi_url`, trang `https://inspector.pypi.io/project/<tên>/` và kho mã, nhưng **không cài gói**. Sau đó R2 điền `r2_label` (`real`, `registered_hallucination`, `placeholder` hoặc `uncertain`), `r2_criterion` (D, R, M, S, E hoặc U) và `r2_note` (lý do ngắn).
+  - **Tính kết quả:** `python -m slopcollect.review.agreement kappa`. Lệnh in cho toàn bộ phiếu, rồi riêng nhóm khó: tỷ lệ đồng ý, Cohen's kappa, bảng chéo, và các tên hai người khác nhau.
+- Những tên hai người khác nhau được bàn để thống nhất. Bài báo báo cáo:
+  - kappa **trước** khi thống nhất, tính trên toàn bộ;
+  - số tên đã đổi nhãn sau khi thống nhất.
 
 ## 9. Kết quả áp dụng P3 (26/11/2026)
 
@@ -200,8 +204,8 @@ Số liệu in bằng `python -m slopcollect.review.summary`.
 |---|---|
 | Tổng số tên model gợi ý | 79.685 |
 | Bước 1: không có trên PyPI / thư viện chuẩn / độc hại đã biết | 55.898 / 342 / 80 |
-| Bước 2: lọt lưới, gán `real` mà không đọc | 21.198 |
-| Bước 3: đưa đi duyệt, người đọc từng tên | 2.167 |
+| Bước 2: lọt lưới, gán `pre_cutoff_unverified`, không kiểm nội dung | 21.198 |
+| Bước 3: đưa đi duyệt, R1 (AI) rà từng tên; người duyệt thứ hai chưa làm | 2.167 |
 
 Kết quả bước 3 theo mã tiêu chí: R 1.158, E 707, S 126, D 125, U 44, M 7. Theo nhãn: `real` 1.158, `placeholder` 832, `registered_hallucination` 126, `uncertain` 51.
 
@@ -220,7 +224,7 @@ So với P2:
 - Lưới lọc mới giữ lại thêm 579 tên: 214 tên có kết luận thời gian `after` và 365 tên `unknown`. Trong số này, 35 tên là S và 40 tên là `uncertain`.
 - Trong 1.588 tên đã duyệt ở P2, 11 tên đổi nhãn.
 - Trong 610 tên P2 nhận là `real` theo đề xuất, việc đối chiếu code với mô tả tìm ra:
-  - các ca bắt chước, ví dụ `perfview` là bản sao nguyên vẹn của `rich`, đăng sau khi model đã gợi ý tên;
+  - các ca bắt chước, ví dụ một gói là bản sao nguyên vẹn của một thư viện nổi tiếng, đăng sau khi model đã gợi ý tên;
   - các ca code không khớp mô tả, gán `uncertain`.
 
 ## 10. Lịch sử phiên bản
@@ -242,3 +246,5 @@ So với P2:
   6. Dự án không có ngày tải lên được định ngày nhờ `_last-serial` (`exists_by`).
   7. Không đếm code trong các thư mục đóng gói lẫn vào (`venv/`, `site-packages/`…).
   8. "Khớp" chỉ cần khớp tóm tắt **hoặc** mô tả. Thêm hai trường hợp đều gán `uncertain`: bản sao nguyên vẹn của gói khác (bắt chước) và mã đã làm rối.
+  9. Tên lọt lưới đổi nhãn từ `real` thành `pre_cutoff_unverified`, vì không được kiểm nội dung. Nhãn `real` chỉ còn dành cho tên đã duyệt.
+  10. Người duyệt thứ hai đọc kép toàn bộ các tên đã duyệt, không lấy mẫu.

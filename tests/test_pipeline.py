@@ -128,8 +128,8 @@ def test_end_to_end(root, ctx):
     labels = dict(conn.execute("SELECT norm_name, label FROM labels").fetchall())
     mentioned = {r[0] for r in conn.execute("SELECT DISTINCT norm_name FROM mentions")}
     assert set(labels) == mentioned  # chỉ gắn nhãn tên LLM đã gợi ý, không gắn tên chỉ có trong danh sách
-    assert labels["requests"] == "real"
-    assert labels["scikit-learn"] == "real"
+    assert labels["requests"] == "pre_cutoff_unverified"  # lọt lưới lọc, chưa kiểm nội dung
+    assert labels["scikit-learn"] == "pre_cutoff_unverified"
     assert labels["vectorcache"] == "hallucinated_absent"
     assert labels["fastyaml-pro"] == "registered_hallucination"  # có trong 0pstech và còn trên PyPI
     assert labels["pandas-easyio"] == "known_malicious"           # OSV MAL-*

@@ -267,7 +267,7 @@ def scope(conn: sqlite3.Connection, overrides: dict[str, dict]) -> list[str]:
     # Gói luật gắn real nhưng tóm tắt có lời phòng vệ/nghiên cứu (vd "Benign slopsquatting research package").
     for n, raw in conn.execute(
         "SELECT l.norm_name, m.raw_json FROM labels l JOIN metadata_raw m ON m.norm_name = l.norm_name AND m.source = 'pypi_json' "
-        "WHERE l.labeler_version = ? AND l.label = 'real' AND m.raw_json IS NOT NULL", (LABELER_VERSION,)
+        "WHERE l.labeler_version = ? AND l.label IN ('real', 'pre_cutoff_unverified') AND m.raw_json IS NOT NULL", (LABELER_VERSION,)
     ):
         summary = ((json.loads(raw).get("info") or {}).get("summary") or "")
         if DEFENSIVE.search(summary):

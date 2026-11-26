@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from slopcollect.stages.label import rule_known_malicious, rule_real
+from slopcollect.stages.label import rule_known_malicious, rule_pre_cutoff
 
 CFG = {"malicious_lists": ["datadog", "osv_malicious"]}
 
@@ -19,8 +19,8 @@ def test_compromised_popular_package_is_real():
     # Gói thật còn trên PyPI, chỉ 2 trong 990 phiên bản bị nhiễm.
     i = info({"osv_malicious": {"versions": ["1.82.7", "1.82.8"]}, "datadog": {"versions": ["1.82.8"]}}, n_releases=990)
     assert rule_known_malicious(i, CFG) is None
-    lab, review, ev = rule_real(i, CFG)
-    assert lab == "real" and ev["compromised_versions"] == ["1.82.7", "1.82.8"]
+    lab, review, ev = rule_pre_cutoff(i, CFG)
+    assert lab == "pre_cutoff_unverified" and ev["compromised_versions"] == ["1.82.7", "1.82.8"]
 
 
 def test_removed_package_with_listed_versions_stays_malicious():

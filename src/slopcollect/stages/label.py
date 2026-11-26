@@ -1,7 +1,9 @@
 """Bước label: gắn nhãn cho từng tên gói bằng chuỗi luật áp theo thứ tự (luật đầu tiên khớp sẽ quyết định).
 
 Nhãn:
-  real                      tên thật, gói bình thường
+  real                      gói thật: có code khớp mô tả, đã duyệt (chỉ đến từ overrides)
+  pre_cutoff_unverified     có trên PyPI, lọt lưới lọc (có từ trước mốc dữ liệu của mọi model đã gợi ý nó), chưa kiểm
+                            nội dung; không thể là tên bịa đã bị đăng ký, nhưng cũng không được coi là gói thật
   hallucinated_absent       tên không có trên PyPI (tầng 1 bắt được)
   registered_hallucination  tên có trên PyPI nhưng nghi do người khác đăng ký theo tên bịa (lớp đáng ngờ)
   placeholder               bản giữ chỗ / phòng vệ trỏ sang gói đúng
@@ -41,7 +43,7 @@ DEFAULT_RULES = [
     "after_cutoff",
     "after_model_cutoff",
     "young_low_downloads",
-    "real",
+    "pre_cutoff",
 ]
 
 DEFAULT_PLACEHOLDER_PATTERNS = [
@@ -66,7 +68,7 @@ DEFAULT_PLACEHOLDER_PATTERNS = [
 # luật placeholder chỉ xét tóm tắt và mô tả ngắn (bản v1 sai khoảng 95% trên mẫu duyệt tay).
 LABELER_VERSION = "rules-v3"
 
-LABELS = {"real", "hallucinated_absent", "registered_hallucination", "placeholder", "known_malicious", "unlabeled", "stdlib", "uncertain"}
+LABELS = {"real", "pre_cutoff_unverified", "hallucinated_absent", "registered_hallucination", "placeholder", "known_malicious", "unlabeled", "stdlib", "uncertain"}
 
 Verdict = tuple[str, bool, dict[str, Any]]
 
@@ -192,9 +194,10 @@ def rule_young_low_downloads(info: dict[str, Any], cfg: dict[str, Any]) -> Verdi
     return None
 
 
-@register("label_rule", "real")
-def rule_real(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
-    return ("real", False, info.get("compromised") or {})
+@register("label_rule", "pre_cutoff")
+def rule_pre_cutoff(info: dict[str, Any], cfg: dict[str, Any]) -> Verdict | None:
+    """Luật cuối: tên có trên PyPI không bị lưới lọc giữ lại. Không kiểm nội dung (quyết định 26/11/2026), nên không gọi là real."""
+    return ("pre_cutoff_unverified", False, info.get("compromised") or {})
 
 
 def _read_overrides(path: Any) -> dict[str, dict[str, str]]:
@@ -300,7 +303,7 @@ def label(
                 if verdict:
                     break
             else:
-                raise RuntimeError("Không luật nào khớp: thêm luật 'real' vào cuối danh sách rules")
+                raise RuntimeError("Không luật nào khớp: thêm luật 'pre_cutoff' vào cuối danh sách rules")
             lab, review, evidence = verdict
             if lab not in LABELS:
                 raise ValueError(f"Luật {rule_name} trả nhãn không hợp lệ: {lab}")
