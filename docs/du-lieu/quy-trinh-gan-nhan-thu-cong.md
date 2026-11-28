@@ -2,6 +2,8 @@
 
 Tài liệu này quy định cách mỗi tên gói do model gợi ý nhận nhãn: phần nào máy tự quyết, phần nào người phải đọc, đọc theo tiêu chí gì và kiểm lại ra sao. Phần phương pháp của bài báo và người duyệt thứ hai đều dùng đúng văn bản này. Muốn sửa tiêu chí thì phải nâng phiên bản và ghi lý do ở mục 10.
 
+**Bổ sung P3-404 (28/11/2026):** Trong thống kê theo quy ước mới, mỗi tên có phản hồi HTTP 404 từ PyPI JSON API ở thời điểm ghi nhận được tính là **ảo giác theo 404**, kể cả khi có trong snapshot hoặc mang nhãn P3 khác. Đây là chỉ số riêng, không ghi đè `label_p3`, `label_analysis` hay thông tin `known_malicious`. Timeout, lỗi mạng, 403 và các mã khác không phải 404. Ghi thời điểm và nguồn phản hồi; 404 không chứng minh tên chưa từng tồn tại. Quy ước này chưa được cài đặt trong pipeline và chưa làm thay đổi dữ liệu đã xuất; các mục dưới mô tả P3 lịch sử.
+
 ## 1. Bức tranh tổng thể
 
 Đơn vị gán nhãn là một **tên gói đã chuẩn hóa** theo PEP 503 mà ít nhất một model đã gợi ý. Trạng thái trên PyPI lấy theo bản sao danh sách ngày 12/11/2026.
@@ -248,3 +250,4 @@ So với P2:
   8. "Khớp" chỉ cần khớp tóm tắt **hoặc** mô tả. Thêm hai trường hợp đều gán `uncertain`: bản sao nguyên vẹn của gói khác (bắt chước) và mã đã làm rối.
   9. Tên lọt lưới đổi nhãn từ `real` thành `pre_cutoff_unverified`, vì không được kiểm nội dung. Nhãn `real` chỉ còn dành cho tên đã duyệt.
   10. Người duyệt thứ hai đọc kép toàn bộ các tên đã duyệt, không lấy mẫu.
+- **P3-404 (28/11/2026):** Bổ sung quy ước thống kê ảo giác theo HTTP 404 của PyPI JSON API theo quyết định nghiên cứu; giữ nhãn P3 và trạng thái độc hại riêng để có thể đối chiếu. Không sử dụng GitHub để tính chỉ số này.

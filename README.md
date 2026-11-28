@@ -1,10 +1,12 @@
 # Slopsquatting: phát hiện tên gói ảo giác bền vững trước tấn công đối kháng
 
-Tài liệu nghiên cứu cho luận văn thạc sĩ chuyên ngành An toàn thông tin:
+Đây là dự án **nghiên cứu thực nghiệm phục vụ bài báo khoa học** trong lĩnh vực an toàn thông tin. Repository lưu phương pháp, mã thực nghiệm và tài liệu để đối chiếu, tái lập kết quả:
 
 > **Tăng cường độ bền vững adversarial cho hệ thống phát hiện tấn công Slopsquatting (Package Hallucination) trong mã nguồn sinh bởi mô hình ngôn ngữ lớn**
 >
 > *Adversarially Robust Detection of Slopsquatting Attacks in LLM-Generated Code: A Multi-Threat-Model and Cross-Ecosystem Study*
+
+Phạm vi dữ liệu đã thu và gán nhãn là **Python/PyPI**. Hai giai đoạn dưới đây mô tả đề cương, không phải kết quả đã xác nhận. Khi báo cáo, ghi rõ bản chụp PyPI, phiên bản nhãn, tập đánh giá và giới hạn bằng chứng; tách kết quả thăm dò khỏi kết luận đã được kiểm chứng.
 
 Đề tài gồm hai giai đoạn:
 
@@ -51,6 +53,8 @@ Các tài liệu gốc nằm trên Google Drive (file .docx, .xlsx, Google Docs,
 | File | Nội dung | Ngày |
 | --- | --- | --- |
 | [thiet-ke-du-lieu.md](docs/du-lieu/thiet-ke-du-lieu.md) | Báo cáo gửi thầy hướng dẫn: trả lời các câu hỏi về dữ liệu, bộ phát hiện hai tầng có dùng metadata, đóng góp khoa học, thay đổi so với đề cương | 07/11/2026 |
+| [tu-dien-nhan-va-kiem-chung.md](docs/du-lieu/tu-dien-nhan-va-kiem-chung.md) | Tám loại nhãn, tiêu chí và nguồn kiểm chứng | — |
+| [tong-hop-du-lieu-va-nhan-p3.md](docs/bao-cao/tong-hop-du-lieu-va-nhan-p3.md) | Kết quả P3 hiện hành và các điểm cần lưu tâm khi duyệt nhãn | — |
 
 ## Code thu thập dữ liệu
 
